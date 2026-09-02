@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
-import { ArrowLeft, Sparkles, MessageCircle, Mic, FileText, Book } from 'lucide-react';
+import { ArrowLeft, Sparkles, MessageCircle, Mic, FileText, Book, PlayCircle, Layers, Brain } from 'lucide-react';
 import AIChatbot from '../components/AIChatbot';
 
 interface Resource {
@@ -43,7 +43,11 @@ const ChapterContent = () => {
   const handleSummarize = async () => {
     setIsSummarizing(true);
     try {
-      const res = await api.post('ai/summarize/', { chapter_id: chapterId });
+      const studentId = localStorage.getItem('student_id');
+      const res = await api.post('ai/summarize/', {
+        chapter_id: chapterId,
+        student_id: studentId,
+      });
       setSummary(res.data.summary);
     } catch (error) {
       console.error('Summarize error', error);
@@ -53,10 +57,11 @@ const ChapterContent = () => {
     }
   };
 
+  // Voice Assistant State
   const [isRecording, setIsRecording] = useState(false);
-  const [voiceAudio, setVoiceAudio] = useState<string | null>(null);
   const [voiceTranscribed, setVoiceTranscribed] = useState('');
   const [voiceTextResponse, setVoiceTextResponse] = useState('');
+  const [voiceProcessing, setVoiceProcessing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<BlobPart[]>([]);
 
@@ -107,23 +112,25 @@ const ChapterContent = () => {
     formData.append('audio', audioBlob, 'doubt.webm');
     formData.append('chapter_id', chapterId || '');
 
-    setSummary('Processing voice doubt...');
-    
+    setVoiceProcessing(true);
+    setVoiceTranscribed('');
+    setVoiceTextResponse('');
+
     try {
       const res = await api.post('ai/voice/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setVoiceTranscribed(res.data.transcribed_text);
       setVoiceTextResponse(res.data.text_response);
-      setVoiceAudio(`http://localhost:8080${res.data.audio_url}`);
-      setSummary(''); // Clear processing msg
-      
+
       // Auto play audio
       const audio = new Audio(`http://localhost:8080${res.data.audio_url}`);
       audio.play();
     } catch (error) {
       console.error('Voice Assistant Error', error);
-      setSummary('Failed to process voice.');
+      setVoiceTextResponse('Failed to process voice. Please try again.');
+    } finally {
+      setVoiceProcessing(false);
     }
   };
 
@@ -156,14 +163,14 @@ const ChapterContent = () => {
           {/* Main Content Area */}
           <div className="lg:col-span-2 space-y-6">
             
-            {/* Video Player Placeholder */}
+            {/* Video Player */}
             <div className="bg-black aspect-video rounded-2xl flex items-center justify-center relative overflow-hidden shadow-xl">
               {videoResource ? (
                 <video src={videoResource.file_path} controls className="w-full h-full object-cover" />
               ) : (
                 <div className="text-white text-center">
                   <PlayCircle size={64} className="mx-auto mb-4 opacity-50" />
-                  <p>Mock Video Player Offline</p>
+                  <p>No video available for this chapter</p>
                 </div>
               )}
             </div>
@@ -189,20 +196,41 @@ const ChapterContent = () => {
               
               <button 
                 onClick={handleVoiceAssistantToggle}
-                className={`flex-1 flex items-center justify-center py-3 px-4 ${isRecording ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-pink-100 hover:bg-pink-200 text-pink-700'} font-semibold rounded-xl transition`}
+                className={`flex-1 flex items-center justify-center py-3 px-4 ${
+                  isRecording
+                    ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                    : 'bg-pink-100 hover:bg-pink-200 text-pink-700'
+                } font-semibold rounded-xl transition`}
               >
                 <Mic size={20} className="mr-2" />
-                {isRecording ? 'Stop Recording' : 'Voice Assistant'}
+                {isRecording ? 'Stop Recording' : voiceProcessing ? 'Processing...' : 'Voice Assistant'}
               </button>
             </div>
 
             {/* AI Summary Output */}
             {summary && (
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-indigo-100 animate-fade-in-up">
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-indigo-100">
                 <div className="flex items-center text-indigo-600 mb-3 font-bold">
                   <Sparkles size={20} className="mr-2" /> AI Summary
                 </div>
                 <p className="text-slate-700 leading-relaxed">{summary}</p>
+              </div>
+            )}
+
+            {/* Voice Assistant Response */}
+            {(voiceTranscribed || voiceTextResponse) && (
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-pink-100">
+                <div className="flex items-center text-pink-600 mb-3 font-bold">
+                  <Mic size={20} className="mr-2" /> Voice Assistant
+                </div>
+                {voiceTranscribed && (
+                  <p className="text-slate-500 text-sm mb-2">
+                    <span className="font-medium">You said:</span> "{voiceTranscribed}"
+                  </p>
+                )}
+                {voiceTextResponse && (
+                  <p className="text-slate-700 leading-relaxed">{voiceTextResponse}</p>
+                )}
               </div>
             )}
 
@@ -255,12 +283,28 @@ const ChapterContent = () => {
               </div>
             </div>
             
+            {/* Practice Section — Wired to real pages */}
             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-2xl shadow-md text-white">
               <h3 className="font-bold text-lg mb-2">Practice Time!</h3>
-              <p className="text-indigo-100 text-sm mb-4">Generate flashcards or a quick quiz based on this chapter.</p>
-              <button className="w-full bg-white/20 hover:bg-white/30 backdrop-blur-sm py-2 rounded-lg font-semibold transition">
-                Start Quiz (Mock)
-              </button>
+              <p className="text-indigo-100 text-sm mb-4">
+                Generate flashcards or take a quiz based on this chapter.
+              </p>
+              <div className="space-y-3">
+                <button
+                  onClick={() => navigate(`/chapters/${chapterId}/flashcards`)}
+                  className="w-full flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-2.5 rounded-lg font-semibold transition"
+                >
+                  <Layers size={18} />
+                  Flashcards
+                </button>
+                <button
+                  onClick={() => navigate(`/chapters/${chapterId}/quiz`)}
+                  className="w-full flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-2.5 rounded-lg font-semibold transition"
+                >
+                  <Brain size={18} />
+                  Take Quiz
+                </button>
+              </div>
             </div>
           </div>
 
@@ -269,10 +313,5 @@ const ChapterContent = () => {
     </div>
   );
 };
-
-// Mock PlayCircle icon if not imported at top
-const PlayCircle = ({ size, className }: { size: number, className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
-);
 
 export default ChapterContent;

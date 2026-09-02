@@ -33,7 +33,7 @@ const Registration = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4">
       <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center text-slate-800 mb-2">EduCarnival</h1>
+        <h1 className="text-3xl font-bold text-center text-slate-800 mb-2">ORBIS</h1>
         <p className="text-center text-slate-500 mb-8">Let's get started on your learning journey!</p>
         
         <form onSubmit={handleSubmit} className="space-y-5">

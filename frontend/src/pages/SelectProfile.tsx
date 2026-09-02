@@ -38,7 +38,7 @@ const SelectProfile = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4">
       <div className="bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl w-full max-w-2xl text-center">
-        <h1 className="text-4xl font-extrabold text-slate-800 mb-2 tracking-tight">EduCarnival</h1>
+        <h1 className="text-4xl font-extrabold text-slate-800 mb-2 tracking-tight">ORBIS</h1>
         <p className="text-slate-500 mb-10 text-lg">Who is learning today?</p>
         
         {loading ? (
