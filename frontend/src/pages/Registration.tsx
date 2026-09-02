@@ -23,6 +23,7 @@ const Registration = () => {
       localStorage.setItem('student_id', response.data.id);
       localStorage.setItem('student_name', response.data.name);
       localStorage.setItem('student_grade', response.data.grade);
+      localStorage.setItem('currentStudent', JSON.stringify(response.data));
       navigate('/dashboard');
     } catch (error) {
       console.error('Registration failed', error);

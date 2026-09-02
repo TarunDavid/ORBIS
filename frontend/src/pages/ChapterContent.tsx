@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
-import { ArrowLeft, Sparkles, MessageCircle, Mic, FileText, Book, PlayCircle, Layers, Brain } from 'lucide-react';
+import { ArrowLeft, Sparkles, MessageCircle, Mic, FileText, Book, PlayCircle, Layers, Brain, Eye } from 'lucide-react';
 import AIChatbot from '../components/AIChatbot';
+import AttentionTracker from '../components/AttentionTracker';
 
 interface Resource {
   id: number;
@@ -25,12 +26,31 @@ const ChapterContent = () => {
   const [summary, setSummary] = useState('');
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
+  const [focusModeActive, setFocusModeActive] = useState(false);
+  const [isDistracted, setIsDistracted] = useState(false);
+  const mainVideoRef = useRef<HTMLVideoElement>(null);
+
+  const updateProgress = async (fields: { video_watched?: boolean, notes_viewed?: boolean, summary_generated?: boolean }) => {
+    const studentStr = localStorage.getItem('currentStudent');
+    if (!studentStr) return;
+    const studentId = JSON.parse(studentStr).id;
+    try {
+      await api.post('progress/update_progress/', {
+        student_id: studentId,
+        chapter_id: chapterId,
+        ...fields
+      });
+    } catch (e) {
+      console.error('Failed to update progress', e);
+    }
+  };
 
   useEffect(() => {
     const fetchChapter = async () => {
       try {
         const res = await api.get(`chapters/${chapterId}/`);
         setChapter(res.data);
+        updateProgress({ video_watched: true, notes_viewed: true });
       } catch (error) {
         console.error('Error fetching chapter', error);
       } finally {
@@ -43,12 +63,14 @@ const ChapterContent = () => {
   const handleSummarize = async () => {
     setIsSummarizing(true);
     try {
-      const studentId = localStorage.getItem('student_id');
+      const studentStr = localStorage.getItem('currentStudent');
+      const studentId = studentStr ? JSON.parse(studentStr).id : null;
       const res = await api.post('ai/summarize/', {
         chapter_id: chapterId,
         student_id: studentId,
       });
       setSummary(res.data.summary);
+      updateProgress({ summary_generated: true });
     } catch (error) {
       console.error('Summarize error', error);
       setSummary('Failed to summarize. Check AI backend.');
@@ -161,22 +183,77 @@ const ChapterContent = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Main Content Area */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* Video Player */}
-            <div className="bg-black aspect-video rounded-2xl flex items-center justify-center relative overflow-hidden shadow-xl">
-              {videoResource ? (
-                <video src={videoResource.file_path} controls className="w-full h-full object-cover" />
-              ) : (
-                <div className="text-white text-center">
-                  <PlayCircle size={64} className="mx-auto mb-4 opacity-50" />
-                  <p>No video available for this chapter</p>
-                </div>
-              )}
-            </div>
+          <div className="max-w-7xl mx-auto space-y-8 lg:col-span-2">
+        
+        {/* Video Player Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden relative">
+          
+          {focusModeActive && (
+            <AttentionTracker 
+              isActive={focusModeActive}
+              onDistracted={() => {
+                if (!isDistracted) {
+                  setIsDistracted(true);
+                  if (mainVideoRef.current) {
+                    mainVideoRef.current.pause();
+                  }
+                }
+              }}
+              onFocused={() => {
+                // If they were distracted, they must manually click 'Resume' 
+                // so we don't automatically un-pause the video here, 
+                // but we could clear the distracted state if we wanted.
+              }}
+            />
+          )}
 
-            {/* AI Action Row */}
+          {isDistracted && (
+            <div className="absolute inset-0 bg-black bg-opacity-80 z-40 flex flex-col items-center justify-center text-white space-y-4">
+              <Brain size={64} className="text-indigo-400 animate-pulse" />
+              <h2 className="text-3xl font-bold">Are you still there?</h2>
+              <p className="text-slate-300">We noticed you looked away for a while.</p>
+              <button 
+                onClick={() => {
+                  setIsDistracted(false);
+                  if (mainVideoRef.current) {
+                    mainVideoRef.current.play();
+                  }
+                }}
+                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-bold transition-colors"
+              >
+                I'm back, resume video!
+              </button>
+            </div>
+          )}
+
+          <div className="aspect-video bg-black relative">
+            <video 
+              ref={mainVideoRef}
+              src={videoResource ? videoResource.file_path : ''} 
+              controls 
+              className="w-full h-full object-contain"
+              onPlay={() => setIsDistracted(false)}
+            />
+          </div>
+          
+          <div className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <h2 className="text-3xl font-extrabold text-slate-800">{chapter.title}</h2>
+              <p className="text-slate-500 mt-2 flex items-center space-x-2">
+                <PlayCircle size={18} />
+                <span>Video Lesson</span>
+              </p>
+            </div>
             <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setFocusModeActive(!focusModeActive)}
+                className={`flex items-center space-x-2 px-5 py-3 rounded-xl font-semibold transition-all shadow-sm ${
+                  focusModeActive ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50'
+                }`}
+              >
+                <Eye size={20} />
+                <span>{focusModeActive ? 'Focus Mode On' : 'Enable Focus Mode'}</span>
+              </button>
               <button 
                 onClick={handleSummarize}
                 disabled={isSummarizing}
@@ -206,6 +283,8 @@ const ChapterContent = () => {
                 {isRecording ? 'Stop Recording' : voiceProcessing ? 'Processing...' : 'Voice Assistant'}
               </button>
             </div>
+          </div>
+        </div>{/* End video card */}
 
             {/* AI Summary Output */}
             {summary && (
@@ -239,7 +318,7 @@ const ChapterContent = () => {
                <AIChatbot chapterId={chapterId!} />
             )}
 
-          </div>
+          </div>{/* End main content column */}
 
           {/* Sidebar / Resources */}
           <div className="lg:col-span-1 space-y-6">

@@ -13,7 +13,40 @@ const AIChatbot = ({ chapterId }: { chapterId: string }) => {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sessionId, setSessionId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Get student from localStorage
+  const currentStudentStr = localStorage.getItem('currentStudent');
+  const student = currentStudentStr ? JSON.parse(currentStudentStr) : null;
+  const studentId = student?.id;
+
+  // Load chat history on mount
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!studentId || !chapterId) return;
+      try {
+        const res = await api.get(`chat-sessions/?student_id=${studentId}&chapter_id=${chapterId}`);
+        if (res.data.results && res.data.results.length > 0) {
+          const latestSession = res.data.results[0]; // Assuming ordered by -created_at
+          setSessionId(latestSession.id);
+          if (latestSession.messages && latestSession.messages.length > 0) {
+            const history = latestSession.messages.map((m: any) => ({
+              sender: m.role === 'user' ? 'user' : 'bot',
+              text: m.content
+            }));
+            setMessages([
+              { sender: 'bot', text: 'Welcome back! Here is our previous chat.' },
+              ...history
+            ]);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load chat history', err);
+      }
+    };
+    loadHistory();
+  }, [chapterId, studentId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -33,8 +66,16 @@ const AIChatbot = ({ chapterId }: { chapterId: string }) => {
     setLoading(true);
 
     try {
-      const res = await api.post('ai/chat/', { chapter_id: chapterId, message: userMessage });
+      const res = await api.post('ai/chat/', { 
+        chapter_id: chapterId, 
+        message: userMessage,
+        student_id: studentId,
+        session_id: sessionId
+      });
       setMessages(prev => [...prev, { sender: 'bot', text: res.data.response }]);
+      if (res.data.session_id && !sessionId) {
+        setSessionId(res.data.session_id);
+      }
     } catch (error) {
       console.error('Chat error', error);
       setMessages(prev => [...prev, { sender: 'bot', text: 'Sorry, I am offline or an error occurred.' }]);
@@ -45,8 +86,11 @@ const AIChatbot = ({ chapterId }: { chapterId: string }) => {
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
-      <div className="bg-purple-600 text-white p-4 font-bold flex items-center">
-        <Bot className="mr-2" size={24} /> Chapter AI Tutor
+      <div className="bg-purple-600 text-white p-4 font-bold flex items-center justify-between">
+        <div className="flex items-center">
+          <Bot className="mr-2" size={24} /> Chapter AI Tutor
+        </div>
+        {sessionId && <span className="text-xs bg-purple-500 px-2 py-1 rounded">History Synced</span>}
       </div>
       
       <div className="flex-1 p-4 overflow-y-auto bg-slate-50 space-y-4">

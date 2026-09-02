@@ -5,6 +5,7 @@ from .views import (
     ChatSessionViewSet, FlashcardSetViewSet,
     QuizAttemptViewSet, LearningProgressViewSet,
 )
+from .sync_views import export_sync, import_sync
 
 router = DefaultRouter()
 router.register(r'students', StudentViewSet)
@@ -18,4 +19,6 @@ router.register(r'progress', LearningProgressViewSet, basename='learningprogress
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('sync/export/', export_sync, name='sync_export'),
+    path('sync/import/', import_sync, name='sync_import'),
 ]

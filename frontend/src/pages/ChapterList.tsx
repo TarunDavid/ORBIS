@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
 import { PlayCircle, ArrowLeft } from 'lucide-react';
+import ProgressIndicator from '../components/ProgressIndicator';
 
 interface Chapter {
   id: number;
@@ -16,21 +17,40 @@ const ChapterList = () => {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [subjectName, setSubjectName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [progressMap, setProgressMap] = useState<Record<number, any>>({});
+
+  const currentStudentStr = localStorage.getItem('currentStudent');
+  const student = currentStudentStr ? JSON.parse(currentStudentStr) : null;
+  const studentId = student?.id;
 
   useEffect(() => {
-    const fetchChapters = async () => {
+    const fetchChaptersAndProgress = async () => {
       try {
-        const res = await api.get(`subjects/${subjectId}/`);
+        const [res, progressRes] = await Promise.all([
+          api.get(`subjects/${subjectId}/`),
+          studentId ? api.get(`progress/?student_id=${studentId}`) : Promise.resolve({ data: [] })
+        ]);
+        
         setSubjectName(res.data.display_name);
         setChapters(res.data.chapters.sort((a: Chapter, b: Chapter) => a.order - b.order));
+        
+        // Handle both paginated ({results: [...]}) and non-paginated ([...]) responses
+        const progressItems = Array.isArray(progressRes.data) 
+          ? progressRes.data 
+          : (progressRes.data.results || []);
+        const pMap: Record<number, any> = {};
+        progressItems.forEach((p: any) => {
+          pMap[p.chapter] = p;
+        });
+        setProgressMap(pMap);
       } catch (error) {
         console.error('Error fetching chapters', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchChapters();
-  }, [subjectId]);
+    fetchChaptersAndProgress();
+  }, [subjectId, studentId]);
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 md:p-12">
@@ -64,13 +84,16 @@ const ChapterList = () => {
                   onClick={() => navigate(`/chapters/${chapter.id}`)}
                   className="w-full text-left bg-white p-6 rounded-2xl shadow-sm hover:shadow-md transition flex items-center justify-between border border-slate-100 group"
                 >
-                  <div>
+                  <div className="w-full mr-6">
                     <span className="text-sm font-bold text-indigo-500 uppercase tracking-wider block mb-1">
                       Chapter {chapter.order}
                     </span>
-                    <h3 className="text-xl font-bold text-slate-800">{chapter.title}</h3>
+                    <h3 className="text-xl font-bold text-slate-800 mb-2">{chapter.title}</h3>
+                    <div className="max-w-xs">
+                      <ProgressIndicator progress={progressMap[chapter.id]} />
+                    </div>
                   </div>
-                  <div className="text-slate-300 group-hover:text-indigo-500 transition-colors">
+                  <div className="text-slate-300 group-hover:text-indigo-500 transition-colors flex-shrink-0">
                     <PlayCircle size={32} />
                   </div>
                 </button>

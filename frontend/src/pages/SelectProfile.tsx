@@ -32,6 +32,7 @@ const SelectProfile = () => {
     localStorage.setItem('student_id', profile.id.toString());
     localStorage.setItem('student_name', profile.name);
     localStorage.setItem('student_grade', profile.grade);
+    localStorage.setItem('currentStudent', JSON.stringify(profile));
     navigate('/dashboard');
   };
 

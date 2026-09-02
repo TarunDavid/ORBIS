@@ -77,8 +77,8 @@ class QuizAttemptViewSet(viewsets.ReadOnlyModelViewSet):
         return qs.order_by('-created_at')
 
 
-class LearningProgressViewSet(viewsets.ReadOnlyModelViewSet):
-    """List/retrieve learning progress. Filter by student_id."""
+class LearningProgressViewSet(viewsets.ModelViewSet):
+    """List/retrieve/update learning progress. Filter by student_id."""
     serializer_class = LearningProgressSerializer
 
     def get_queryset(self):
@@ -87,3 +87,26 @@ class LearningProgressViewSet(viewsets.ReadOnlyModelViewSet):
         if student_id:
             qs = qs.filter(student_id=student_id)
         return qs
+
+    @action(detail=False, methods=['post'])
+    def update_progress(self, request):
+        student_id = request.data.get('student_id')
+        chapter_id = request.data.get('chapter_id')
+        
+        if not student_id or not chapter_id:
+            return Response({'error': 'student_id and chapter_id required'}, status=400)
+            
+        progress, _ = LearningProgress.objects.get_or_create(
+            student_id=student_id,
+            chapter_id=chapter_id
+        )
+        
+        if 'video_watched' in request.data:
+            progress.video_watched = request.data['video_watched']
+        if 'notes_viewed' in request.data:
+            progress.notes_viewed = request.data['notes_viewed']
+        if 'summary_generated' in request.data:
+            progress.summary_generated = request.data['summary_generated']
+            
+        progress.save()
+        return Response(LearningProgressSerializer(progress).data)

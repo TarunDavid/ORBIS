@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, RefreshCw } from 'lucide-react';
 
 interface Subject {
   id: number;
@@ -50,9 +50,18 @@ const Dashboard = () => {
             <h1 className="text-4xl font-extrabold text-slate-800 tracking-tight">Hello, {studentName} 👋</h1>
             <p className="text-slate-500 mt-2 text-lg">Ready to learn something new in {studentGrade}?</p>
           </div>
-          <button onClick={handleLogout} className="text-sm font-medium text-slate-500 hover:text-slate-800 transition">
-            Switch User
-          </button>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => navigate('/sync')}
+              className="flex items-center space-x-2 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg transition-colors font-medium"
+            >
+              <RefreshCw size={20} />
+              <span className="hidden sm:inline">Sync Content</span>
+            </button>
+            <button onClick={handleLogout} className="text-sm font-medium text-slate-500 hover:text-slate-800 transition">
+              Switch User
+            </button>
+          </div>
         </header>
 
         {loading ? (
