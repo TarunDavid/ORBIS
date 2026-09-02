@@ -9,13 +9,12 @@ ssl._create_default_https_context = ssl._create_unverified_context
 MODELS_DIR = os.path.join(os.path.dirname(__file__), 'models')
 os.makedirs(MODELS_DIR, exist_ok=True)
 
-def download_smollm():
-    print("Downloading SmolLM2 1.7B GGUF...")
-    # SmolLM2 1.7B Instruct Q4_K_M GGUF
-    repo_id = "HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF"
-    filename = "smollm2-1.7b-instruct-q4_k_m.gguf"
+def download_qwen():
+    print("Downloading Qwen2.5 1.5B Instruct GGUF (Q4_K_M)...")
+    repo_id = "Qwen/Qwen2.5-1.5B-Instruct-GGUF"
+    filename = "qwen2.5-1.5b-instruct-q4_k_m.gguf"
     model_path = hf_hub_download(repo_id=repo_id, filename=filename, local_dir=MODELS_DIR)
-    print(f"SmolLM downloaded to: {model_path}")
+    print(f"Qwen2.5 downloaded to: {model_path}")
     return model_path
 
 def download_piper_voice():
@@ -35,7 +34,7 @@ def download_piper_voice():
     print(f"Piper voice downloaded to: {onnx_path}")
 
 def run():
-    download_smollm()
+    download_qwen()
     download_piper_voice()
     print("All models downloaded successfully!")
     print("Note: faster-whisper will automatically download its model on first run.")

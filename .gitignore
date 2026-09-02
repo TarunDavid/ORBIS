@@ -1,7 +1,7 @@
 # Backend
 backend/venv/
-backend/__pycache__/
-backend/*.pyc
+**/__pycache__/
+**/*.pyc
 backend/db.sqlite3
 backend/media/
 backend/models/
