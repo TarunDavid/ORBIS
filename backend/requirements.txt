@@ -5,3 +5,4 @@ llama-cpp-python
 faster-whisper
 huggingface_hub
 PyMuPDF
+piper-tts

@@ -26,5 +26,10 @@ urlpatterns = [
     path('api/ai/', include('ai_engine.urls')),
 ]
 
+from django.urls import re_path
+from api.media_views import serve_media_with_range
+
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += [
+        re_path(r'^media/(?P<path>.*)$', serve_media_with_range),
+    ]

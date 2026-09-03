@@ -81,8 +81,10 @@ class TTSService:
                 f"Run: python download_models.py"
             )
 
+        import sys
+        piper_bin = os.path.join(os.path.dirname(sys.executable), 'piper')
         command = [
-            "piper",
+            piper_bin,
             "--model", PIPER_ONNX_PATH,
             "--output_file", output_path
         ]
