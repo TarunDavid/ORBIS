@@ -6,6 +6,7 @@ from .views import (
     FlashcardGenerateView,
     QuizGenerateView,
     QuizSubmitView,
+    QuizAnalyzeView,
 )
 
 urlpatterns = [
@@ -15,4 +16,5 @@ urlpatterns = [
     path('flashcards/', FlashcardGenerateView.as_view(), name='ai-flashcards'),
     path('quiz/', QuizGenerateView.as_view(), name='ai-quiz'),
     path('quiz/submit/', QuizSubmitView.as_view(), name='ai-quiz-submit'),
+    path('quiz/analyze/', QuizAnalyzeView.as_view(), name='ai-quiz-analyze'),
 ]

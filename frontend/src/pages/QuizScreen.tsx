@@ -1,7 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Loader2, CheckCircle2, XCircle, Trophy, RotateCw } from 'lucide-react';
+import { ArrowLeft, Sparkles, Loader2, CheckCircle2, XCircle, Trophy, RotateCw, Bot } from 'lucide-react';
 import api from '../api';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+
+const formatMath = (text: string) => {
+  if (!text) return '';
+  return text
+    .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$')
+    .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$');
+};
 
 interface QuizQuestionData {
   question: string;
@@ -17,7 +27,20 @@ interface QuizResult {
   is_correct: boolean;
 }
 
+interface QuestionExplanation {
+  question_id: number;
+  order: number;
+  explanation: string;
+}
+
+interface WeakConcept {
+  concept_name: string;
+  explanation: string;
+  related_question_ids: number[];
+}
+
 type QuizPhase = 'loading' | 'answering' | 'results' | 'error';
+type AnalysisPhase = 'idle' | 'loading' | 'done' | 'error';
 
 const QuizScreen = () => {
   const { chapterId } = useParams();
@@ -32,6 +55,9 @@ const QuizScreen = () => {
   const [score, setScore] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [error, setError] = useState('');
+  const [analysisPhase, setAnalysisPhase] = useState<AnalysisPhase>('idle');
+  const [explanations, setExplanations] = useState<QuestionExplanation[]>([]);
+  const [weakConcepts, setWeakConcepts] = useState<WeakConcept[]>([]);
 
   const generateQuiz = async () => {
     setPhase('loading');
@@ -39,6 +65,9 @@ const QuizScreen = () => {
     setSelectedAnswers({});
     setCurrentQ(0);
     setResults([]);
+    setAnalysisPhase('idle');
+    setExplanations([]);
+    setWeakConcepts([]);
 
     try {
       const studentId = localStorage.getItem('student_id');
@@ -100,10 +129,30 @@ const QuizScreen = () => {
       setScore(res.data.score);
       setTotalQuestions(res.data.total);
       setPhase('results');
+      
+      // Trigger background analysis
+      if (res.data.score < res.data.total) {
+        analyzeQuiz(attemptId);
+      } else {
+        setAnalysisPhase('done');
+      }
     } catch (err) {
       console.error('Quiz submit error', err);
       setError('Failed to submit quiz.');
       setPhase('error');
+    }
+  };
+
+  const analyzeQuiz = async (aid: number) => {
+    setAnalysisPhase('loading');
+    try {
+      const res = await api.post('ai/quiz/analyze/', { attempt_id: aid });
+      setExplanations(res.data.explanations || []);
+      setWeakConcepts(res.data.weak_concepts || []);
+      setAnalysisPhase('done');
+    } catch (err) {
+      console.error('Analysis error', err);
+      setAnalysisPhase('error');
     }
   };
 
@@ -335,11 +384,69 @@ const QuizScreen = () => {
                           );
                         })}
                       </div>
+
+                      {/* AI Explanation */}
+                      {!result.is_correct && analysisPhase === 'done' && (
+                        <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                          <div className="flex items-center text-purple-600 font-bold text-sm mb-2 uppercase tracking-wide">
+                            <Bot size={16} className="mr-1.5" /> AI Explanation
+                          </div>
+                          <div className="prose prose-sm prose-slate max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                              {formatMath(explanations.find(e => e.order === (i + 1))?.explanation || 'No explanation available.')}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
+
+            {/* Analysis Loading / Concepts Section */}
+            {analysisPhase === 'loading' && (
+              <div className="mt-8 flex flex-col items-center justify-center p-8 bg-white/50 rounded-3xl border-2 border-dashed border-emerald-200">
+                <Loader2 size={40} className="animate-spin text-emerald-500 mb-4" />
+                <p className="text-slate-600 font-bold">Orbee is analyzing your answers...</p>
+                <p className="text-slate-500 text-sm mt-1">Identifying concepts to review</p>
+              </div>
+            )}
+            
+            {analysisPhase === 'error' && (
+              <div className="mt-8 p-6 bg-red-50 border border-red-200 rounded-2xl text-center">
+                <p className="text-red-600 font-medium">Failed to analyze weak concepts.</p>
+                <button onClick={() => attemptId && analyzeQuiz(attemptId)} className="mt-3 text-sm font-semibold text-red-700 underline">Retry Analysis</button>
+              </div>
+            )}
+
+            {analysisPhase === 'done' && scorePercent < 100 && weakConcepts.length > 0 && (
+              <div className="mt-12 mb-8">
+                <h3 className="text-2xl font-extrabold text-slate-800 mb-6 flex items-center">
+                  <Bot className="mr-3 text-purple-500" size={32} /> Concepts to Review
+                </h3>
+                <div className="grid gap-6">
+                  {weakConcepts.map((concept, idx) => (
+                    <div key={idx} className="bg-white rounded-3xl shadow-md border border-slate-100 p-8 overflow-hidden relative">
+                      <div className="absolute top-0 left-0 w-2 h-full bg-purple-500" />
+                      <h4 className="text-lg font-bold text-slate-800 mb-3">{concept.concept_name}</h4>
+                      <div className="prose prose-sm prose-slate max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                          {formatMath(concept.explanation)}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {analysisPhase === 'done' && scorePercent === 100 && (
+              <div className="mt-8 p-6 bg-emerald-100 border border-emerald-200 rounded-2xl text-center">
+                <p className="text-emerald-800 font-bold text-lg">Perfect Score!</p>
+                <p className="text-emerald-700 mt-1">No weak concepts detected. You've mastered this chapter.</p>
+              </div>
+            )}
           </>
         )}
       </div>

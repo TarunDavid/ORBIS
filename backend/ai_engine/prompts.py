@@ -19,6 +19,7 @@ RULES:
 - If the student asks something not covered in the chapter content, say so honestly rather than making up answers.
 - Be encouraging and patient. Use examples and analogies when helpful.
 - Keep responses concise but thorough.
+- When writing math equations or fractions, you MUST use standard markdown math delimiters: use $ for inline math (e.g. $\frac{{1}}{{2}}$) and $$ for block math. Do NOT use parentheses or brackets.
 - Do NOT mention that you are an AI or reference the context/prompt structure.
 
 CHAPTER CONTENT:
@@ -64,6 +65,32 @@ CHAPTER CONTENT:
 
 Respond ONLY with valid JSON in this exact format, no other text:
 {{"questions": [{{"question": "question text", "options": ["A) option", "B) option", "C) option", "D) option"], "correct_answer": "A"}}]}}"""
+
+EXPLAIN_INCORRECT_QUESTION = """You are ORBIS AI Tutor helping a student understand a mistake on a quiz.
+Explain why the correct answer is right and why their selected answer is wrong. Keep it brief, encouraging, and easy to understand for a school student. Use standard markdown math delimiters ($ and $$).
+
+CHAPTER CONTENT:
+{chapter_context}
+
+QUESTION: {question_text}
+OPTIONS: {options}
+CORRECT ANSWER: {correct_answer}
+STUDENT'S ANSWER: {student_answer}
+
+EXPLANATION:"""
+
+IDENTIFY_WEAK_CONCEPTS = """You are ORBIS AI Tutor analyzing a student's quiz mistakes.
+Based on the incorrectly answered questions below, identify the core underlying concepts the student is struggling with from the chapter.
+Explain each weak concept briefly and clearly to help them study.
+
+CHAPTER CONTENT:
+{chapter_context}
+
+INCORRECT QUESTIONS:
+{questions_json}
+
+Respond ONLY with valid JSON in this exact format, no other text:
+{{"weak_concepts": [{{"concept_name": "Short Name", "explanation": "Brief explanation of the concept based on the chapter", "related_question_ids": [1, 2]}}]}}"""
 
 # ==============================================================================
 # Adaptive Re-explanation (Phase 4 — integrates with Preethi's personalization)

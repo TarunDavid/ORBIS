@@ -1,25 +1,36 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, User, Bot, Loader2 } from 'lucide-react';
 import api from '../api';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 
 interface Message {
   sender: 'user' | 'bot';
   text: string;
 }
 
+const formatMath = (text: string) => {
+  if (!text) return '';
+  return text
+    .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$')
+    .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$');
+};
+
 const AIChatbot = ({ chapterId }: { chapterId: string }) => {
+  // Get student from localStorage
+  const currentStudentStr = localStorage.getItem('currentStudent');
+  const student = currentStudentStr ? JSON.parse(currentStudentStr) : null;
+  const studentId = student?.id;
+  const studentName = student?.name || student?.first_name || 'there';
+
   const [messages, setMessages] = useState<Message[]>([
-    { sender: 'bot', text: 'Hi! I am your AI tutor. What doubt do you have about this chapter?' }
+    { sender: 'bot', text: `Hi, ${studentName}! I’m Orbee, your AI tutor. Would you like some help with this chapter?` }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Get student from localStorage
-  const currentStudentStr = localStorage.getItem('currentStudent');
-  const student = currentStudentStr ? JSON.parse(currentStudentStr) : null;
-  const studentId = student?.id;
 
   // Load chat history on mount
   useEffect(() => {
@@ -88,7 +99,7 @@ const AIChatbot = ({ chapterId }: { chapterId: string }) => {
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
       <div className="bg-purple-600 text-white p-4 font-bold flex items-center justify-between">
         <div className="flex items-center">
-          <Bot className="mr-2" size={24} /> Chapter AI Tutor
+          <Bot className="mr-2" size={24} /> Orbee
         </div>
         {sessionId && <span className="text-xs bg-purple-500 px-2 py-1 rounded">History Synced</span>}
       </div>
@@ -100,8 +111,14 @@ const AIChatbot = ({ chapterId }: { chapterId: string }) => {
               <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${msg.sender === 'user' ? 'bg-indigo-100 text-indigo-600 ml-3' : 'bg-purple-100 text-purple-600 mr-3'}`}>
                 {msg.sender === 'user' ? <User size={16} /> : <Bot size={16} />}
               </div>
-              <div className={`p-3 rounded-2xl ${msg.sender === 'user' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none'}`}>
-                {msg.text}
+              <div className={`p-3 rounded-2xl ${msg.sender === 'user' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none prose prose-sm prose-purple max-w-none'}`}>
+                {msg.sender === 'user' ? (
+                  msg.text
+                ) : (
+                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                    {formatMath(msg.text)}
+                  </ReactMarkdown>
+                )}
               </div>
             </div>
           </div>

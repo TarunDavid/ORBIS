@@ -187,3 +187,31 @@ class LearningProgress(models.Model):
 
     def __str__(self):
         return f"Progress: {self.student.name} - {self.chapter.title}"
+
+
+class QuestionExplanation(models.Model):
+    """AI-generated explanation for an incorrect quiz question."""
+    question = models.OneToOneField(
+        QuizQuestion, on_delete=models.CASCADE, related_name='explanation'
+    )
+    explanation_text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Explanation for Q{self.question.order} (Attempt {self.question.attempt_id})"
+
+
+class WeakConcept(models.Model):
+    """An AI-identified weak concept across multiple incorrect questions."""
+    attempt = models.ForeignKey(
+        QuizAttempt, on_delete=models.CASCADE, related_name='weak_concepts'
+    )
+    concept_name = models.CharField(max_length=255)
+    explanation = models.TextField()
+    related_questions = models.ManyToManyField(
+        QuizQuestion, related_name='weak_concepts_linked'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Weak Concept: {self.concept_name} (Attempt {self.attempt_id})"

@@ -15,7 +15,7 @@ from functools import lru_cache
 logger = logging.getLogger(__name__)
 
 # Max characters of context to send to the LLM to stay within token budget
-MAX_CONTEXT_CHARS = 6000
+MAX_CONTEXT_CHARS = 60000
 
 
 def _extract_pdf_text(file_path: str) -> str:

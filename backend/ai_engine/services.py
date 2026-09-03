@@ -32,7 +32,7 @@ class LLMService:
             print("Loading Qwen2.5 1.5B into memory...")
             cls._instance = Llama(
                 model_path=QWEN_PATH,
-                n_ctx=4096,  # Qwen2.5 supports larger context
+                n_ctx=16384,  # Increased to support full video transcripts
                 verbose=True,
             )
             print("Qwen2.5 loaded.")
