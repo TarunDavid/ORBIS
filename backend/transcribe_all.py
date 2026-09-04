@@ -38,7 +38,8 @@ def transcribe_videos(chapter_id=None):
         print(f"Transcribing {video_name}...")
         try:
             # We use smaller beam size or fp16 if possible to speed up, but base settings are fine
-            segments, info = stt.transcribe(local_path, beam_size=5)
+            # We use task="translate" to automatically translate Hindi/Kannada to English
+            segments, info = stt.transcribe(local_path, beam_size=5, task="translate")
             transcript_text = "".join([segment.text for segment in segments]).strip()
             
             with open(transcript_path, 'w', encoding='utf-8') as f:
