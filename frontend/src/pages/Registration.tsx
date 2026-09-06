@@ -65,7 +65,7 @@ const Registration = () => {
             <input required type="text" name="mentor_name" value={formData.mentor_name} onChange={handleChange} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="Mr. Smith" />
           </div>
           <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition shadow-lg hover:shadow-xl">
-            Start Learning
+            Start Exploring
           </button>
         </form>
       </div>
