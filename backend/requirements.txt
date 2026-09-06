@@ -6,3 +6,6 @@ faster-whisper
 huggingface_hub
 PyMuPDF
 piper-tts
+xhtml2pdf
+markdown
+deep-translator

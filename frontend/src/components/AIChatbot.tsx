@@ -8,6 +8,7 @@ import rehypeKatex from 'rehype-katex';
 interface Message {
   sender: 'user' | 'bot';
   text: string;
+  translatedText?: string;
 }
 
 const formatMath = (text: string) => {
@@ -17,15 +18,43 @@ const formatMath = (text: string) => {
     .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$');
 };
 
-const AIChatbot = ({ chapterId }: { chapterId: string }) => {
+interface AIChatbotProps {
+  chapterId: string;
+  chapterTitle?: string;
+  subjectIdentifier?: string;
+  subjectName?: string;
+}
+
+const AIChatbot = ({ chapterId, chapterTitle, subjectIdentifier, subjectName }: AIChatbotProps) => {
   // Get student from localStorage
   const currentStudentStr = localStorage.getItem('currentStudent');
   const student = currentStudentStr ? JSON.parse(currentStudentStr) : null;
   const studentId = student?.id;
   const studentName = student?.name || student?.first_name || 'there';
 
+  const isKannada = 
+    subjectIdentifier === 'kannada' || 
+    subjectName?.includes('ಕನ್ನಡ') || 
+    /[\u0C80-\u0CFF]/.test(chapterTitle || '');
+    
+  const isHindi = 
+    subjectIdentifier === 'hindi' || 
+    subjectName?.includes('हिन्दी') || 
+    subjectName?.includes('हिंदी') || 
+    /[\u0900-\u097F]/.test(chapterTitle || '');
+
+  const getGreeting = () => {
+    if (isKannada) {
+      return `ನಮಸ್ಕಾರ, ${studentName}! ನಾನು Orbee, ನಿಮ್ಮ AI ಕನ್ನಡ ಶಿಕ್ಷಕ. ಈ ಅಧ್ಯಾಯದ ಬಗ್ಗೆ ನಿಮಗೆ ಏನಾದರೂ ಸಂದೇಹವಿದೆಯೇ?`;
+    }
+    if (isHindi) {
+      return `नमस्ते, ${studentName}! मैं Orbee हूँ, आपका AI हिन्दी ट्यूटर। क्या आप इस पाठ के बारे में कुछ पूछना चाहते हैं?`;
+    }
+    return `Hi, ${studentName}! I’m Orbee, your AI tutor. Would you like some help with this chapter?`;
+  };
+
   const [messages, setMessages] = useState<Message[]>([
-    { sender: 'bot', text: `Hi, ${studentName}! I’m Orbee, your AI tutor. Would you like some help with this chapter?` }
+    { sender: 'bot', text: getGreeting() }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -47,7 +76,14 @@ const AIChatbot = ({ chapterId }: { chapterId: string }) => {
               text: m.content
             }));
             setMessages([
-              { sender: 'bot', text: 'Welcome back! Here is our previous chat.' },
+              { 
+                sender: 'bot', 
+                text: isKannada 
+                  ? 'ಸ್ವಾಗತ! ನಮ್ಮ ಹಿಂದಿನ ಸಂಭಾಷಣೆ ಇಲ್ಲಿದೆ.' 
+                  : isHindi 
+                  ? 'पुनः स्वागत है! यह रही हमारी पिछली बातचीत।' 
+                  : 'Welcome back! Here is our previous chat.' 
+              },
               ...history
             ]);
           }
@@ -57,7 +93,7 @@ const AIChatbot = ({ chapterId }: { chapterId: string }) => {
       }
     };
     loadHistory();
-  }, [chapterId, studentId]);
+  }, [chapterId, studentId, isKannada, isHindi]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -83,13 +119,36 @@ const AIChatbot = ({ chapterId }: { chapterId: string }) => {
         student_id: studentId,
         session_id: sessionId
       });
-      setMessages(prev => [...prev, { sender: 'bot', text: res.data.response }]);
+      
+      const translatedMsg = res.data.translated_message;
+      if (translatedMsg) {
+        setMessages(prev => {
+          const updated = [...prev];
+          for (let idx = updated.length - 1; idx >= 0; idx--) {
+            if (updated[idx].sender === 'user' && updated[idx].text === userMessage && !updated[idx].translatedText) {
+              updated[idx] = { ...updated[idx], translatedText: translatedMsg };
+              break;
+            }
+          }
+          return [...updated, { sender: 'bot', text: res.data.response }];
+        });
+      } else {
+        setMessages(prev => [...prev, { sender: 'bot', text: res.data.response }]);
+      }
+
       if (res.data.session_id && !sessionId) {
         setSessionId(res.data.session_id);
       }
     } catch (error) {
       console.error('Chat error', error);
-      setMessages(prev => [...prev, { sender: 'bot', text: 'Sorry, I am offline or an error occurred.' }]);
+      setMessages(prev => [...prev, { 
+        sender: 'bot', 
+        text: isKannada 
+          ? 'ಕ್ಷಮಿಸಿ, ಸಂಪರ್ಕ ಸಾಧಿಸಲು ಸಾಧ್ಯವಾಗುತ್ತಿಲ್ಲ ಅಥವಾ ದೋಷ ಸಂಭವಿಸಿದೆ.' 
+          : isHindi 
+          ? 'क्षमा करें, कनेक्शन में समस्या है या कोई त्रुटि हुई।' 
+          : 'Sorry, I am offline or an error occurred.' 
+      }]);
     } finally {
       setLoading(false);
     }
@@ -99,7 +158,10 @@ const AIChatbot = ({ chapterId }: { chapterId: string }) => {
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
       <div className="bg-purple-600 text-white p-4 font-bold flex items-center justify-between">
         <div className="flex items-center">
-          <Bot className="mr-2" size={24} /> Orbee
+          <Bot className="mr-2" size={24} />
+          <span>Orbee</span>
+          {isKannada && <span className="ml-2 text-xs bg-purple-700/80 text-purple-100 px-2 py-0.5 rounded-full font-medium">ಕನ್ನಡ AI</span>}
+          {isHindi && <span className="ml-2 text-xs bg-purple-700/80 text-purple-100 px-2 py-0.5 rounded-full font-medium">हिन्दी AI</span>}
         </div>
         {sessionId && <span className="text-xs bg-purple-500 px-2 py-1 rounded">History Synced</span>}
       </div>
@@ -113,7 +175,17 @@ const AIChatbot = ({ chapterId }: { chapterId: string }) => {
               </div>
               <div className={`p-3 rounded-2xl ${msg.sender === 'user' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none prose prose-sm prose-purple max-w-none'}`}>
                 {msg.sender === 'user' ? (
-                  msg.text
+                  <div>
+                    <div>{msg.text}</div>
+                    {msg.translatedText && (
+                      <div className="mt-2 pt-1.5 border-t border-indigo-400/40 text-xs text-indigo-100 flex items-start gap-1">
+                        <span className="opacity-80 whitespace-nowrap">
+                          🔄 {isKannada ? 'ಕನ್ನಡಕ್ಕೆ ಅನುವಾದ:' : isHindi ? 'हिन्दी में अनुवाद:' : 'Translated:'}
+                        </span>
+                        <span className="font-medium text-white">{msg.translatedText}</span>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                     {formatMath(msg.text)}
@@ -130,7 +202,10 @@ const AIChatbot = ({ chapterId }: { chapterId: string }) => {
                 <Bot size={16} />
               </div>
               <div className="p-3 rounded-2xl bg-white border border-slate-200 text-slate-700 rounded-tl-none flex items-center">
-                <Loader2 size={16} className="animate-spin text-purple-600 mr-2" /> Thinking...
+                <Loader2 size={16} className="animate-spin text-purple-600 mr-2" /> 
+                <span className="text-sm font-medium">
+                  {isKannada ? 'ಯೋಚಿಸುತ್ತಿದೆ...' : isHindi ? 'सोच रहा हूँ...' : 'Thinking...'}
+                </span>
               </div>
             </div>
           </div>
@@ -143,7 +218,13 @@ const AIChatbot = ({ chapterId }: { chapterId: string }) => {
           type="text" 
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a question..."
+          placeholder={
+            isKannada 
+              ? "ಪ್ರಶ್ನೆ ಕೇಳಿ... (ಕನ್ನಡ ಅಥವಾ English)" 
+              : isHindi 
+              ? "प्रश्न पूछें... (हिन्दी या English)" 
+              : "Ask a question..."
+          }
           className="flex-1 bg-slate-100 border-none rounded-l-xl py-3 px-4 focus:ring-2 focus:ring-purple-500 outline-none"
         />
         <button 

@@ -45,6 +45,41 @@ class LLMService:
             llm = cls.get_instance()
             return llm(prompt, **kwargs)
 
+    @classmethod
+    def chat(cls, messages, **kwargs):
+        """Thread-safe chat completion using Qwen's native chat template."""
+        with cls._lock:
+            llm = cls.get_instance()
+            return llm.create_chat_completion(messages=messages, **kwargs)
+
+    @classmethod
+    def generate_json(cls, messages, max_tokens=2048, retries=1):
+        """
+        Generate structured JSON output using create_chat_completion.
+        Retries up to `retries` times if JSON parsing fails.
+        """
+        import json
+        llm = cls.get_instance()
+        
+        for attempt in range(retries + 1):
+            with cls._lock:
+                output = llm.create_chat_completion(
+                    messages=messages,
+                    response_format={"type": "json_object"},
+                    max_tokens=max_tokens,
+                )
+            
+            try:
+                content = output['choices'][0]['message']['content'].strip()
+                parsed_json = json.loads(content)
+                return parsed_json
+            except (json.JSONDecodeError, KeyError, IndexError) as e:
+                if attempt == retries:
+                    raise ValueError(f"Failed to generate valid JSON after {retries + 1} attempts. Last error: {e}")
+                print(f"JSON generation failed, retrying... (Attempt {attempt + 1}/{retries + 1})")
+        
+        return None
+
 
 class STTService:
     """Singleton service for Whisper speech-to-text (Tarun owns implementation)."""

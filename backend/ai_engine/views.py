@@ -16,7 +16,7 @@ from rest_framework import status
 from django.conf import settings
 
 from .services import LLMService, STTService, TTSService
-from .context import get_chapter_context
+from .context import get_chapter_context, get_chapter_language, translate_query_to_language
 from .prompts import (
     SYSTEM_TUTOR,
     SYSTEM_VOICE_TUTOR,
@@ -25,15 +25,214 @@ from .prompts import (
     GENERATE_QUIZ,
     EXPLAIN_INCORRECT_QUESTION,
     IDENTIFY_WEAK_CONCEPTS,
+    get_system_tutor_prompt,
+    get_voice_tutor_prompt,
+    get_summarize_prompt,
     build_chat_prompt,
     build_completion_prompt,
+    build_messages,
 )
 
 logger = logging.getLogger(__name__)
 
 
+def _safe_translate(text: str, lang_code: str, max_retries: int = 2) -> str:
+    """Translates text safely with non-blocking timeout and retry logic."""
+    import requests
+    import time
+    from deep_translator import MyMemoryTranslator
+
+    clean = text.strip()
+    if not clean:
+        return ""
+
+    orig_get = requests.get
+    def timeout_get(*args, **kwargs):
+        if 'timeout' not in kwargs:
+            kwargs['timeout'] = 6
+        return orig_get(*args, **kwargs)
+    requests.get = timeout_get
+
+    for attempt in range(max_retries):
+        try:
+            t = MyMemoryTranslator(source='en-US', target=lang_code, email='educarnival.orbis@gmail.com')
+            res = t.translate(clean)
+            if res and res.strip():
+                return res.strip()
+        except Exception as e:
+            logger.warning(f"Translation attempt {attempt+1} failed for '{clean[:25]}': {e}")
+            time.sleep(0.3)
+    return ""
+
+
+def generate_educational_summary(chapter_id: int, force_refresh: bool = False) -> tuple[str, str]:
+    """
+    Generates a structured, curriculum-grounded educational summary in the chapter's native language.
+    Avoids raw Whisper transcript errors, speech disfluencies, and garbled quotes.
+    Caches results to disk for fast, repeatable retrieval.
+    """
+    import json
+    import os
+    import re
+    import urllib.parse
+    from django.conf import settings
+    from api.models import Chapter
+    from deep_translator import MyMemoryTranslator
+
+    # Check disk cache first unless forced
+    cache_dir = os.path.join(settings.MEDIA_ROOT, 'ai_summaries')
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_file = os.path.join(cache_dir, f'summary_{chapter_id}.json')
+
+    if not force_refresh and os.path.exists(cache_file):
+        try:
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                cached_data = json.load(f)
+                if cached_data.get('summary') and cached_data.get('language'):
+                    return cached_data['summary'], cached_data['language']
+        except Exception as e:
+            logger.warning(f"Error reading summary cache for chapter {chapter_id}: {e}")
+
+    ch = Chapter.objects.select_related('subject', 'subject__grade').get(id=chapter_id)
+    lang_ident = (ch.subject.identifier or '').lower()
+    disp_name = ch.subject.display_name or ''
+    grade_name = ch.subject.grade.identifier if ch.subject.grade else ''
+
+    if 'kannada' in lang_ident or 'ಕನ್ನಡ' in disp_name:
+        target_lang = 'kannada'
+        lang_code = 'kn-IN'
+        header_overview = '### 📖 ಪಾಠದ ಪರಿಚಯ'
+        header_concepts = '### 💡 ಪ್ರಮುಖ ಕಲಿಕಾಂಶಗಳು'
+        header_exam = '### 🎯 ಪರೀಕ್ಷೆಗೆ ನೆನಪಿಡಬೇಕಾದ ಮುಖ್ಯಾಂಶಗಳು'
+    elif 'hindi' in lang_ident or 'हिन्दी' in disp_name or 'हिंदी' in disp_name:
+        target_lang = 'hindi'
+        lang_code = 'hi-IN'
+        header_overview = '### 📖 पाठ का परिचय'
+        header_concepts = '### 💡 मुख्य अवधारणाएँ एवं सीख'
+        header_exam = '### 🎯 परीक्षा के लिए महत्वपूर्ण बातें'
+    else:
+        target_lang = 'english'
+        lang_code = None
+        header_overview = '### 📖 Chapter Overview'
+        header_concepts = '### 💡 Key Concepts & Learnings'
+        header_exam = '### 🎯 Key Exam Takeaways'
+
+    # Clean lecture title from video resource
+    video_res = ch.resources.filter(resource_type='video').first()
+    lecture_title = ''
+    if video_res:
+        raw_name = os.path.basename(urllib.parse.unquote(video_res.file_path))
+        raw_name = re.sub(r'\s*\(\d+p,.*?\)\.mp4$', '', raw_name)
+        lecture_title = raw_name.replace('.mp4', '').strip()
+
+    sys_prompt = """You are a senior school curriculum designer authoring a study guide for students.
+Based on the chapter title, subject, grade, and video lecture topic, write a high-quality, structured educational summary.
+Structure into exactly 3 sections:
+Overview:
+(2 clear sentences introducing the lesson topic, educational objectives, and why it is important)
+
+Key Concepts:
+- **Concept 1**: Detailed explanation of first concept.
+- **Concept 2**: Detailed explanation of second concept.
+- **Concept 3**: Detailed explanation of third concept.
+
+Exam Takeaways:
+- **Point 1**: Actionable point for revision and exam scoring.
+- **Point 2**: Actionable point for revision and exam scoring.
+
+STRICT RULES:
+- Do NOT quote speech-to-text glitches, transcripts, or conversational filler.
+- Do NOT use generic filler sentences.
+- Write coherent, factual educational explanations appropriate for the school syllabus."""
+
+    user_prompt = f"""Chapter Title: {ch.title}
+Subject: {disp_name} ({grade_name})
+Lecture Topic: {lecture_title}
+
+Write the educational study guide now:"""
+
+    res = LLMService.chat(
+        messages=[
+            {'role': 'system', 'content': sys_prompt},
+            {'role': 'user', 'content': user_prompt}
+        ],
+        max_tokens=600,
+        temperature=0.3,
+        repeat_penalty=1.18,
+    )
+    raw_draft = res['choices'][0]['message']['content'].strip()
+
+    if target_lang == 'english':
+        final_summary = raw_draft
+    else:
+        # Translate each section cleanly into target language
+        translator = MyMemoryTranslator(source='en-US', target=lang_code, email='educarnival.orbis@gmail.com')
+        lines = raw_draft.split('\n')
+        out_lines = [header_overview]
+        seen_headers = {header_overview}
+
+        for line in lines:
+            s = line.strip()
+            if not s:
+                continue
+
+            low = s.lower()
+            if 'concept' in low and ('#' in s or '**' in s or ':' in s):
+                if header_concepts not in seen_headers:
+                    out_lines.append('')
+                    out_lines.append(header_concepts)
+                    seen_headers.add(header_concepts)
+                continue
+            elif ('exam' in low or 'takeaway' in low or 'revision' in low) and ('#' in s or '**' in s or ':' in s):
+                if header_exam not in seen_headers:
+                    out_lines.append('')
+                    out_lines.append(header_exam)
+                    seen_headers.add(header_exam)
+                continue
+            elif 'overview' in low and ('#' in s or '**' in s or ':' in s):
+                continue
+
+            is_bullet = s.startswith('- ') or s.startswith('* ') or bool(re.match(r'^\d+[\.\)]\s*', s)) or s.startswith('####')
+            clean_line = re.sub(r'^(####|[-*\d\.\)])+\s*', '', s).strip()
+
+            if not clean_line or len(clean_line) < 3:
+                continue
+
+            # Translate text safely with timeout and retry
+            try:
+                translated = _safe_translate(clean_line, lang_code)
+                if not translated:
+                    continue
+                translated = re.sub(r'</?[a-zA-Z][^>]*>', '', translated).strip()
+                translated = re.sub(r'^(व्याख्या|ವಿವರಣೆ|Explanation)\s*:\s*\**', '', translated, flags=re.IGNORECASE).strip()
+                if is_bullet:
+                    if not translated.startswith('- '):
+                        out_lines.append(f"- {translated}")
+                    else:
+                        out_lines.append(translated)
+                else:
+                    out_lines.append(translated)
+            except Exception as ex:
+                logger.warning(f"Translation failed for line: {ex}")
+
+        # Drop any dangling truncated fragment at the very end
+        while out_lines and len(out_lines[-1].strip()) < 15 and not out_lines[-1].strip().endswith(('.', '।', '!', '?')):
+            out_lines.pop()
+
+        final_summary = '\n'.join(out_lines)
+
+    # Save to disk cache
+    try:
+        with open(cache_file, 'w', encoding='utf-8') as f:
+            json.dump({'summary': final_summary, 'language': target_lang}, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.warning(f"Failed to write summary cache: {e}")
+
+    return final_summary, target_lang
+
+
 class SummarizeVideoView(APIView):
-    """Generate an AI summary of a chapter's video/content."""
+    """Generate an AI summary of a chapter's video/content in its native language."""
 
     def post(self, request, *args, **kwargs):
         chapter_id = request.data.get('chapter_id')
@@ -43,19 +242,16 @@ class SummarizeVideoView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        context = get_chapter_context(int(chapter_id))
-        prompt = build_completion_prompt(
-            SUMMARIZE_VIDEO.format(chapter_context=context)
-        )
-
         try:
-            output = LLMService.generate(prompt, max_tokens=300, stop=["<|im_end|>"], echo=False)
-            summary_text = output['choices'][0]['text'].strip()
+            summary_text, lang = generate_educational_summary(int(chapter_id))
 
             # Optionally track that summary was generated
             _track_progress(request, chapter_id, 'summary_generated')
 
-            return Response({'summary': summary_text}, status=status.HTTP_200_OK)
+            return Response({
+                'summary': summary_text,
+                'language': lang,
+            }, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Summarize error: {e}")
             return Response(
@@ -65,7 +261,7 @@ class SummarizeVideoView(APIView):
 
 
 class ChatbotView(APIView):
-    """Chapter-grounded AI chatbot for text-based doubt clearing."""
+    """Chapter-grounded AI chatbot for text-based doubt clearing in respective languages."""
 
     def post(self, request, *args, **kwargs):
         chapter_id = request.data.get('chapter_id')
@@ -79,23 +275,55 @@ class ChatbotView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        lang = get_chapter_language(int(chapter_id))
         context = get_chapter_context(int(chapter_id))
-        system_prompt = SYSTEM_TUTOR.format(chapter_context=context)
+        system_prompt = get_system_tutor_prompt(lang, context)
 
         # Load chat history for this session if available
         chat_history = self._get_chat_history(session_id)
 
-        prompt = build_chat_prompt(system_prompt, message, chat_history)
+        # Translate user prompt to the respective language if student asked in English
+        translated_query = None
+        has_latin = any('a' <= c.lower() <= 'z' for c in message)
+        if lang in ['kannada', 'hindi'] and has_latin:
+            translated_query = translate_query_to_language(message, lang)
+
+        if translated_query and translated_query != message:
+            if lang == 'kannada':
+                augmented_message = (
+                    f"ವಿದ್ಯಾರ್ಥಿಯ ಪ್ರಶ್ನೆ (ಕನ್ನಡಕ್ಕೆ ಅನುವಾದಿಸಲಾಗಿದೆ): {translated_query}\n"
+                    f"[ಮೂಲ ಇಂಗ್ಲಿಷ್ ಪ್ರಶ್ನೆ: {message}]\n"
+                    f"[ದಯವಿಟ್ಟು ಕಡ್ಡಾಯವಾಗಿ ಕನ್ನಡ ಲಿಪಿಯಲ್ಲಿಯೇ ಸರಳವಾಗಿ ಮತ್ತು ಸ್ಪಷ್ಟವಾಗಿ ಉತ್ತರಿಸಿ]"
+                )
+            else:
+                augmented_message = (
+                    f"विद्यार्थी का प्रश्न (हिन्दी में अनूदित): {translated_query}\n"
+                    f"[मूल अंग्रेज़ी प्रश्न: {message}]\n"
+                    f"[कृपया अनिवार्य रूप से केवल शुद्ध हिन्दी (देवनागरी लिपि) में ही उत्तर दें]"
+                )
+        else:
+            augmented_message = message
+            if lang == 'kannada' and not any('\u0C80' <= c <= '\u0CFF' for c in message):
+                augmented_message = f"{message}\n[ಸೂಚನೆ: ದಯವಿಟ್ಟು ಕನ್ನಡ ಲಿಪಿಯಲ್ಲಿಯೇ ಉತ್ತರಿಸಿ]"
+            elif lang == 'hindi' and not any('\u0900' <= c <= '\u097F' for c in message):
+                augmented_message = f"{message}\n[निर्देश: कृपया केवल शुद्ध हिन्दी (देवनागरी लिपि) में ही उत्तर दें]"
+
+        # Build messages for chat completion
+        messages = [{"role": "system", "content": system_prompt}]
+        if chat_history:
+            messages.extend(chat_history)
+        messages.append({"role": "user", "content": augmented_message})
 
         try:
-            output = LLMService.generate(
-                prompt, max_tokens=300,
-                stop=["<|im_end|>", "<|im_start|>"],
-                echo=False,
+            output = LLMService.chat(
+                messages=messages,
+                max_tokens=400,
+                temperature=0.7,
+                repeat_penalty=1.15,
             )
-            response_text = output['choices'][0]['text'].strip()
+            response_text = output['choices'][0]['message']['content'].strip()
 
-            # Persist the conversation
+            # Persist the conversation (store original clean message to database)
             saved_session_id = self._save_messages(
                 student_id, chapter_id, session_id, message, response_text
             )
@@ -103,6 +331,8 @@ class ChatbotView(APIView):
             return Response({
                 'response': response_text,
                 'session_id': saved_session_id,
+                'language': lang,
+                'translated_message': translated_query if (translated_query and translated_query != message) else None,
             }, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Chatbot error: {e}")
@@ -201,13 +431,14 @@ class VoiceAssistantView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # 3. LLM (Qwen2.5 — grounded in chapter context)
+            # 3. LLM (Qwen2.5 — grounded in chapter context and language)
+            lang = get_chapter_language(int(chapter_id))
             context = get_chapter_context(int(chapter_id))
-            system_prompt = SYSTEM_VOICE_TUTOR.format(chapter_context=context)
+            system_prompt = get_voice_tutor_prompt(lang, context)
             prompt = build_chat_prompt(system_prompt, user_text)
 
             output = LLMService.generate(
-                prompt, max_tokens=150,
+                prompt, max_tokens=200,
                 stop=["<|im_end|>"],
                 echo=False,
             )
@@ -259,20 +490,14 @@ class FlashcardGenerateView(APIView):
             )
 
         context = get_chapter_context(int(chapter_id))
-        prompt = build_completion_prompt(
+        messages = build_messages(
             GENERATE_FLASHCARDS.format(chapter_context=context, count=count)
         )
 
         try:
-            output = LLMService.generate(
-                prompt, max_tokens=800,
-                stop=["<|im_end|>"],
-                echo=False,
+            flashcard_data = LLMService.generate_json(
+                messages, max_tokens=2048, retries=1
             )
-            raw_text = output['choices'][0]['text'].strip()
-
-            # Parse JSON response
-            flashcard_data = self._parse_json(raw_text)
 
             if not flashcard_data or 'flashcards' not in flashcard_data:
                 return Response(
@@ -297,24 +522,7 @@ class FlashcardGenerateView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    def _parse_json(self, text):
-        """Try to parse JSON from LLM output, handling common issues."""
-        # Try direct parse first
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            pass
 
-        # Try to find JSON within the text
-        try:
-            start = text.index('{')
-            end = text.rindex('}') + 1
-            return json.loads(text[start:end])
-        except (ValueError, json.JSONDecodeError):
-            pass
-
-        logger.error(f"Could not parse JSON from LLM output: {text[:200]}")
-        return None
 
     def _save_flashcards(self, student_id, chapter_id, flashcards):
         """Persist generated flashcards to the database."""
@@ -355,19 +563,14 @@ class QuizGenerateView(APIView):
             )
 
         context = get_chapter_context(int(chapter_id))
-        prompt = build_completion_prompt(
+        messages = build_messages(
             GENERATE_QUIZ.format(chapter_context=context, count=count)
         )
 
         try:
-            output = LLMService.generate(
-                prompt, max_tokens=1000,
-                stop=["<|im_end|>"],
-                echo=False,
+            quiz_data = LLMService.generate_json(
+                messages, max_tokens=2048, retries=1
             )
-            raw_text = output['choices'][0]['text'].strip()
-
-            quiz_data = self._parse_json(raw_text)
 
             if not quiz_data or 'questions' not in quiz_data:
                 return Response(
@@ -392,20 +595,7 @@ class QuizGenerateView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    def _parse_json(self, text):
-        """Try to parse JSON from LLM output."""
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            pass
-        try:
-            start = text.index('{')
-            end = text.rindex('}') + 1
-            return json.loads(text[start:end])
-        except (ValueError, json.JSONDecodeError):
-            pass
-        logger.error(f"Could not parse JSON from LLM output: {text[:200]}")
-        return None
+
 
     def _save_quiz(self, student_id, chapter_id, questions):
         """Persist generated quiz to the database."""
@@ -602,7 +792,7 @@ class QuizAnalyzeView(APIView):
                     } for q in incorrect_questions
                 ], indent=2)
 
-                prompt = build_completion_prompt(
+                messages = build_messages(
                     IDENTIFY_WEAK_CONCEPTS.format(
                         chapter_context=context,
                         questions_json=questions_json
@@ -611,19 +801,9 @@ class QuizAnalyzeView(APIView):
                 
                 weak_concepts_data = []
                 try:
-                    output = LLMService.generate(prompt, max_tokens=500, stop=["<|im_end|>"], echo=False)
-                    raw_text = output['choices'][0]['text'].strip()
-                    
-                    # Use existing _parse_json method (we can instantiate a dummy object or define it as a helper)
-                    # To avoid rewriting, I'll parse it here:
-                    parsed_concepts = None
-                    try:
-                        start = raw_text.find('{')
-                        end = raw_text.rfind('}') + 1
-                        if start != -1 and end != 0:
-                            parsed_concepts = json.loads(raw_text[start:end])
-                    except Exception:
-                        pass
+                    parsed_concepts = LLMService.generate_json(
+                        messages, max_tokens=2048, retries=1
+                    )
                     
                     if parsed_concepts and 'weak_concepts' in parsed_concepts:
                         for wc_data in parsed_concepts['weak_concepts']:

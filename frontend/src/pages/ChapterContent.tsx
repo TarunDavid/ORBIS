@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
 import { ArrowLeft, Sparkles, MessageCircle, Mic, FileText, Book, PlayCircle, Layers, Brain, Eye } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import AIChatbot from '../components/AIChatbot';
 import AttentionTracker from '../components/AttentionTracker';
 
@@ -16,6 +17,8 @@ interface Chapter {
   title: string;
   order: number;
   resources: Resource[];
+  subject_name?: string;
+  subject_identifier?: string;
 }
 
 const ChapterContent = () => {
@@ -146,7 +149,7 @@ const ChapterContent = () => {
       setVoiceTextResponse(res.data.text_response);
 
       // Auto play audio
-      const audio = new Audio(`http://localhost:8080${res.data.audio_url}`);
+      const audio = new Audio(`http://localhost:8000${encodeURI(res.data.audio_url)}`);
       audio.play();
     } catch (error) {
       console.error('Voice Assistant Error', error);
@@ -229,7 +232,7 @@ const ChapterContent = () => {
           <div className="aspect-video bg-black relative">
             <video 
               ref={mainVideoRef}
-              src={videoResource ? videoResource.file_path : ''} 
+              src={videoResource ? encodeURI(videoResource.file_path) : ''}
               controls 
               className="w-full h-full object-contain"
               onPlay={() => setIsDistracted(false)}
@@ -289,10 +292,12 @@ const ChapterContent = () => {
             {/* AI Summary Output */}
             {summary && (
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-indigo-100">
-                <div className="flex items-center text-indigo-600 mb-3 font-bold">
-                  <Sparkles size={20} className="mr-2" /> AI Summary
+                <div className="flex items-center text-indigo-600 mb-3 font-bold text-lg">
+                  <Sparkles size={22} className="mr-2" /> AI Summary
                 </div>
-                <p className="text-slate-700 leading-relaxed">{summary}</p>
+                <div className="prose prose-indigo max-w-none text-slate-700 leading-relaxed">
+                  <ReactMarkdown>{summary}</ReactMarkdown>
+                </div>
               </div>
             )}
 
@@ -315,7 +320,12 @@ const ChapterContent = () => {
 
             {/* Chatbot UI */}
             {showChatbot && (
-               <AIChatbot chapterId={chapterId!} />
+               <AIChatbot 
+                 chapterId={chapterId!} 
+                 chapterTitle={chapter?.title}
+                 subjectIdentifier={chapter?.subject_identifier}
+                 subjectName={chapter?.subject_name}
+               />
             )}
 
           </div>{/* End main content column */}

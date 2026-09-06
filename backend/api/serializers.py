@@ -22,10 +22,12 @@ class ChapterResourceSerializer(serializers.ModelSerializer):
 
 class ChapterSerializer(serializers.ModelSerializer):
     resources = ChapterResourceSerializer(many=True, read_only=True)
+    subject_name = serializers.CharField(source='subject.display_name', read_only=True)
+    subject_identifier = serializers.CharField(source='subject.identifier', read_only=True)
 
     class Meta:
         model = Chapter
-        fields = ['id', 'identifier', 'title', 'order', 'resources']
+        fields = ['id', 'identifier', 'title', 'order', 'resources', 'subject_name', 'subject_identifier']
 
 
 class SubjectSerializer(serializers.ModelSerializer):

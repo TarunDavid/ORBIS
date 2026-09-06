@@ -189,3 +189,63 @@ def invalidate_cache(chapter_id: int = None):
         # lru_cache doesn't support per-key invalidation,
         # so we clear the whole cache
         get_chapter_context.cache_clear()
+
+
+def get_chapter_language(chapter_id: int) -> str:
+    """
+    Determine the primary language for a chapter ('kannada', 'hindi', or 'english').
+    """
+    from api.models import Chapter
+    try:
+        chapter = Chapter.objects.select_related('subject').get(id=chapter_id)
+        subject_ident = (chapter.subject.identifier or '').lower()
+        disp = (chapter.subject.display_name or '').lower()
+        if 'kannada' in subject_ident or 'ಕನ್ನಡ' in chapter.subject.display_name:
+            return 'kannada'
+        elif 'hindi' in subject_ident or 'हिन्दी' in chapter.subject.display_name or 'हिंदी' in chapter.subject.display_name:
+            return 'hindi'
+    except Exception as e:
+        logger.warning(f"Could not determine language for chapter {chapter_id}: {e}")
+    return 'english'
+
+
+def translate_query_to_language(text: str, target_lang: str) -> str:
+    """
+    Translates an English user question into the chapter's native language (Kannada or Hindi).
+    Uses MyMemoryTranslator with caching and fallback.
+    """
+    target_lang = (target_lang or '').lower()
+    if target_lang not in ['kannada', 'hindi']:
+        return text
+
+    if not text or not text.strip():
+        return text
+
+    # Check if text contains Latin/English letters
+    has_latin = any('a' <= c.lower() <= 'z' for c in text)
+    if not has_latin:
+        return text
+
+    if target_lang == 'kannada':
+        # If text is already in Kannada script, skip
+        if any('\u0C80' <= c <= '\u0CFF' for c in text):
+            return text
+        lang_code = 'kn-IN'
+    else:
+        # If text is already in Hindi Devanagari script, skip
+        if any('\u0900' <= c <= '\u097F' for c in text):
+            return text
+        lang_code = 'hi-IN'
+
+    try:
+        from deep_translator import MyMemoryTranslator
+        translated = MyMemoryTranslator(source='en-US', target=lang_code, email='educarnival.orbis@gmail.com').translate(text)
+        if translated and translated.strip():
+            logger.info(f"Translated query [{text}] -> [{translated.strip()}] ({target_lang})")
+            return translated.strip()
+    except Exception as e:
+        logger.warning(f"Translation failed via MyMemoryTranslator: {e}")
+
+    return text
+
+
