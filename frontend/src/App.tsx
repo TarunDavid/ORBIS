@@ -11,7 +11,7 @@ import SyncScreen from './pages/SyncScreen';
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-slate-50 font-sans">
+      <div className="min-h-screen bg-canvas font-jakarta">
         <Routes>
           <Route path="/" element={<SelectProfile />} />
           <Route path="/register" element={<Registration />} />

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Loader2 } from 'lucide-react';
+import { Send, User, Bot } from 'lucide-react';
 import api from '../api';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -68,7 +68,7 @@ const AIChatbot = ({ chapterId, chapterTitle, subjectIdentifier, subjectName }: 
       try {
         const res = await api.get(`chat-sessions/?student_id=${studentId}&chapter_id=${chapterId}`);
         if (res.data.results && res.data.results.length > 0) {
-          const latestSession = res.data.results[0]; // Assuming ordered by -created_at
+          const latestSession = res.data.results[0];
           setSessionId(latestSession.id);
           if (latestSession.messages && latestSession.messages.length > 0) {
             const history = latestSession.messages.map((m: any) => ({
@@ -155,55 +155,79 @@ const AIChatbot = ({ chapterId, chapterTitle, subjectIdentifier, subjectName }: 
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
-      <div className="bg-purple-600 text-white p-4 font-bold flex items-center justify-between">
-        <div className="flex items-center">
-          <Bot className="mr-2" size={24} />
-          <span>Orbee</span>
-          {isKannada && <span className="ml-2 text-xs bg-purple-700/80 text-purple-100 px-2 py-0.5 rounded-full font-medium">ಕನ್ನಡ AI</span>}
-          {isHindi && <span className="ml-2 text-xs bg-purple-700/80 text-purple-100 px-2 py-0.5 rounded-full font-medium">हिन्दी AI</span>}
+    <div className="clay-card-lg bg-white overflow-hidden flex flex-col h-[520px]">
+      
+      {/* Header */}
+      <div className="bg-lilac text-[#121316] p-4 font-bold flex items-center justify-between border-b-[3px] border-[#121316]">
+        <div className="flex items-center gap-2">
+          <div className="clay-circle bg-white text-[#121316] p-1.5 shadow-sm">
+            <Bot size={20} />
+          </div>
+          <span className="font-syne font-extrabold text-lg">Orbee</span>
+          {isKannada && (
+            <span className="clay-chip bg-white text-[#121316] px-2.5 py-0.5 text-[10px]">ಕನ್ನಡ AI</span>
+          )}
+          {isHindi && (
+            <span className="clay-chip bg-white text-[#121316] px-2.5 py-0.5 text-[10px]">हिन्दी AI</span>
+          )}
         </div>
-        {sessionId && <span className="text-xs bg-purple-500 px-2 py-1 rounded">History Synced</span>}
+        
+        {sessionId && (
+          <span className="clay-chip bg-gold text-[#121316] px-2 py-0.5 text-[10px]">HISTORY SYNCED</span>
+        )}
       </div>
       
-      <div className="flex-1 p-4 overflow-y-auto bg-slate-50 space-y-4">
+      {/* Messages area */}
+      <div className="flex-1 p-4 overflow-y-auto bg-canvas space-y-4 font-jakarta">
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`flex max-w-[80%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${msg.sender === 'user' ? 'bg-indigo-100 text-indigo-600 ml-3' : 'bg-purple-100 text-purple-600 mr-3'}`}>
+            <div className={`flex max-w-[85%] gap-2.5 ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+              
+              <div className={`flex-shrink-0 w-8 h-8 rounded-full border-2 border-[#121316] flex items-center justify-center ${
+                msg.sender === 'user' ? 'bg-cobalt text-white' : 'bg-lilac text-[#121316]'
+              }`}>
                 {msg.sender === 'user' ? <User size={16} /> : <Bot size={16} />}
               </div>
-              <div className={`p-3 rounded-2xl ${msg.sender === 'user' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none prose prose-sm prose-purple max-w-none'}`}>
+
+              <div className={`p-3.5 rounded-2xl border-2 border-[#121316] text-sm leading-relaxed ${
+                msg.sender === 'user' 
+                  ? 'bg-cobalt text-white font-medium rounded-tr-none shadow-sm' 
+                  : 'bg-white text-[#121316] rounded-tl-none shadow-sm'
+              }`}>
                 {msg.sender === 'user' ? (
                   <div>
                     <div>{msg.text}</div>
                     {msg.translatedText && (
-                      <div className="mt-2 pt-1.5 border-t border-indigo-400/40 text-xs text-indigo-100 flex items-start gap-1">
-                        <span className="opacity-80 whitespace-nowrap">
+                      <div className="mt-2 pt-1.5 border-t border-white/30 text-xs text-white/90 flex items-start gap-1 font-normal">
+                        <span className="opacity-90 whitespace-nowrap font-bold">
                           🔄 {isKannada ? 'ಕನ್ನಡಕ್ಕೆ ಅನುವಾದ:' : isHindi ? 'हिन्दी में अनुवाद:' : 'Translated:'}
                         </span>
-                        <span className="font-medium text-white">{msg.translatedText}</span>
+                        <span>{msg.translatedText}</span>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                    {formatMath(msg.text)}
-                  </ReactMarkdown>
+                  <div className="prose prose-sm prose-slate max-w-none text-[#121316]">
+                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                      {formatMath(msg.text)}
+                    </ReactMarkdown>
+                  </div>
                 )}
               </div>
+
             </div>
           </div>
         ))}
+
         {loading && (
           <div className="flex justify-start">
-            <div className="flex flex-row max-w-[80%]">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 text-purple-600 mr-3 flex items-center justify-center">
+            <div className="flex flex-row items-center gap-2.5 max-w-[80%]">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full border-2 border-[#121316] bg-lilac text-[#121316] flex items-center justify-center">
                 <Bot size={16} />
               </div>
-              <div className="p-3 rounded-2xl bg-white border border-slate-200 text-slate-700 rounded-tl-none flex items-center">
-                <Loader2 size={16} className="animate-spin text-purple-600 mr-2" /> 
-                <span className="text-sm font-medium">
+              <div className="p-3 rounded-2xl rounded-tl-none bg-white border-2 border-[#121316] text-[#121316] flex items-center gap-2 shadow-sm">
+                <div className="clay-spinner w-4 h-4 border-2 border-[#121316] border-t-lilac"></div> 
+                <span className="font-grotesk text-xs uppercase font-bold tracking-wider">
                   {isKannada ? 'ಯೋಚಿಸುತ್ತಿದೆ...' : isHindi ? 'सोच रहा हूँ...' : 'Thinking...'}
                 </span>
               </div>
@@ -213,7 +237,8 @@ const AIChatbot = ({ chapterId, chapterTitle, subjectIdentifier, subjectName }: 
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSend} className="p-4 bg-white border-t border-slate-100 flex items-center">
+      {/* Input bar */}
+      <form onSubmit={handleSend} className="p-3 bg-white border-t-[3px] border-[#121316] flex items-center gap-2">
         <input 
           type="text" 
           value={input}
@@ -223,16 +248,17 @@ const AIChatbot = ({ chapterId, chapterTitle, subjectIdentifier, subjectName }: 
               ? "ಪ್ರಶ್ನೆ ಕೇಳಿ... (ಕನ್ನಡ ಅಥವಾ English)" 
               : isHindi 
               ? "प्रश्न पूछें... (हिन्दी या English)" 
-              : "Ask a question..."
+              : "Ask Orbee a question..."
           }
-          className="flex-1 bg-slate-100 border-none rounded-l-xl py-3 px-4 focus:ring-2 focus:ring-purple-500 outline-none"
+          className="clay-input flex-1 py-2.5 px-4 text-sm font-jakarta text-[#121316]"
         />
         <button 
           type="submit" 
           disabled={loading || !input.trim()}
-          className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white p-3 rounded-r-xl transition flex items-center justify-center"
+          className="clay-btn bg-lilac hover:bg-purple-300 text-[#121316] p-2.5 flex items-center justify-center disabled:opacity-40"
+          aria-label="Send message"
         >
-          <Send size={20} />
+          <Send size={18} />
         </button>
       </form>
     </div>

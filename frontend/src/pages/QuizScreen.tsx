@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Loader2, CheckCircle2, XCircle, Trophy, RotateCw, Bot } from 'lucide-react';
+import { ArrowLeft, Sparkles, CheckCircle2, XCircle, Trophy, RotateCw, Bot } from 'lucide-react';
 import api from '../api';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -111,11 +111,9 @@ const QuizScreen = () => {
     setPhase('loading');
 
     try {
-      // Map answers by question order (1-indexed) for the backend
       const answerMap: Record<string, string> = {};
       questions.forEach((_, idx) => {
         const selected = selectedAnswers[idx] || '';
-        // Extract just the letter from the selected option (e.g., "A) ..." → "A")
         const letter = selected.charAt(0);
         answerMap[String(idx + 1)] = letter;
       });
@@ -130,7 +128,6 @@ const QuizScreen = () => {
       setTotalQuestions(res.data.total);
       setPhase('results');
       
-      // Trigger background analysis
       if (res.data.score < res.data.total) {
         analyzeQuiz(attemptId);
       } else {
@@ -161,54 +158,61 @@ const QuizScreen = () => {
   const scorePercent = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+    <div className="min-h-screen bg-canvas text-[#121316] font-jakarta pb-16">
       <div className="max-w-3xl mx-auto p-4 md:p-8">
-        {/* Header */}
+        
+        {/* Header Navigation */}
         <div className="flex items-center justify-between mb-8">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center text-slate-500 hover:text-slate-800 transition font-medium"
+            className="clay-btn bg-white text-[#121316] hover:bg-canvas px-4 py-2 text-sm flex items-center gap-2"
           >
-            <ArrowLeft className="mr-2" size={20} /> Back to Chapter
+            <ArrowLeft size={18} />
+            <span>Back to Chapter</span>
           </button>
+          
           {phase === 'results' && (
             <button
               onClick={generateQuiz}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-semibold rounded-xl transition"
+              className="clay-btn bg-mint text-[#121316] hover:bg-emerald-400 px-4 py-2 text-sm flex items-center gap-2 font-bold"
             >
-              <RotateCw size={16} /> New Quiz
+              <RotateCw size={16} />
+              <span>New Quiz</span>
             </button>
           )}
         </div>
 
+        {/* Title Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold text-slate-800 mb-2">
-            <Sparkles className="inline mr-2 text-emerald-500" size={28} />
+          <div className="inline-flex items-center justify-center clay-circle bg-mint text-[#121316] p-3 mb-3 shadow-md">
+            <Sparkles size={28} />
+          </div>
+          <h1 className="text-3xl md:text-5xl font-syne font-extrabold text-[#121316] tracking-tight mb-2">
             Chapter Quiz
           </h1>
           {phase === 'answering' && (
-            <p className="text-slate-500">
-              Answer all questions, then submit to see your score
+            <p className="font-grotesk text-xs uppercase tracking-widest text-stone-600 font-bold">
+              Answer all questions, then submit for on-device AI analysis
             </p>
           )}
         </div>
 
-        {/* Loading */}
+        {/* Loading State */}
         {phase === 'loading' && (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 size={48} className="animate-spin text-emerald-500 mb-4" />
-            <p className="text-slate-600 font-medium">Generating quiz from chapter content...</p>
-            <p className="text-slate-400 text-sm mt-1">This may take a moment</p>
+          <div className="clay-card bg-white p-12 flex flex-col items-center justify-center my-10 max-w-lg mx-auto text-center space-y-4">
+            <div className="clay-spinner"></div>
+            <p className="font-syne font-bold text-lg text-[#121316]">Generating Chapter Quiz...</p>
+            <p className="font-grotesk text-xs uppercase tracking-wider text-stone-500">Creating custom questions from curriculum</p>
           </div>
         )}
 
-        {/* Error */}
+        {/* Error State */}
         {phase === 'error' && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
-            <p className="text-red-600 font-medium">{error}</p>
+          <div className="clay-card bg-white p-8 max-w-lg mx-auto border-l-[8px] border-l-coral text-center space-y-4">
+            <p className="font-syne font-bold text-lg text-coral">{error}</p>
             <button
               onClick={generateQuiz}
-              className="mt-4 px-6 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-semibold rounded-xl transition"
+              className="clay-btn bg-coral text-white px-6 py-2.5 text-sm"
             >
               Try Again
             </button>
@@ -219,25 +223,25 @@ const QuizScreen = () => {
         {phase === 'answering' && questions.length > 0 && (
           <>
             {/* Progress bar */}
-            <div className="mb-6">
-              <div className="flex justify-between text-sm text-slate-500 mb-2">
+            <div className="mb-6 space-y-2">
+              <div className="flex justify-between text-xs font-grotesk font-bold text-[#121316] uppercase tracking-wider">
                 <span>Question {currentQ + 1} of {questions.length}</span>
-                <span>{answeredCount} answered</span>
+                <span>{answeredCount} / {questions.length} Answered</span>
               </div>
-              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div className="h-4 bg-white border-[3px] border-[#121316] rounded-full overflow-hidden p-0.5 shadow-sm">
                 <div
-                  className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                  className="h-full bg-mint rounded-full border border-[#121316] transition-all duration-300"
                   style={{ width: `${((currentQ + 1) / questions.length) * 100}%` }}
                 />
               </div>
             </div>
 
             {/* Question Card */}
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-8 mb-6">
-              <span className="text-xs font-bold text-emerald-500 uppercase tracking-wider">
-                Question {currentQ + 1}
-              </span>
-              <h2 className="text-xl font-bold text-slate-800 mt-3 mb-6">
+            <div className="clay-card-lg bg-white p-6 md:p-8 mb-6 relative">
+              <div className="inline-block clay-chip bg-mint text-[#121316] px-3 py-1 text-xs mb-3 font-bold">
+                QUESTION {currentQ + 1}
+              </div>
+              <h2 className="text-xl md:text-2xl font-syne font-bold text-[#121316] mb-6 leading-snug">
                 {questions[currentQ].question}
               </h2>
 
@@ -248,13 +252,13 @@ const QuizScreen = () => {
                     <button
                       key={i}
                       onClick={() => selectAnswer(currentQ, option)}
-                      className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
+                      className={`w-full text-left p-4 rounded-xl border-[3px] border-[#121316] font-jakarta transition-all ${
                         isSelected
-                          ? 'border-emerald-500 bg-emerald-50 shadow-sm'
-                          : 'border-slate-100 bg-slate-50 hover:border-slate-200 hover:bg-white'
+                          ? 'bg-cobalt text-white font-bold shadow-none translate-x-1 translate-y-1'
+                          : 'bg-canvas text-[#121316] hover:bg-white clay-card-sm'
                       }`}
                     >
-                      <span className={`font-medium ${isSelected ? 'text-emerald-700' : 'text-slate-700'}`}>
+                      <span className="text-sm md:text-base leading-relaxed">
                         {option}
                       </span>
                     </button>
@@ -263,12 +267,12 @@ const QuizScreen = () => {
               </div>
             </div>
 
-            {/* Navigation */}
-            <div className="flex items-center justify-between">
+            {/* Navigation Controls */}
+            <div className="flex items-center justify-between gap-4">
               <button
                 onClick={goToPrev}
                 disabled={currentQ === 0}
-                className="px-5 py-2.5 bg-white rounded-xl shadow-sm hover:shadow-md transition font-medium text-slate-600 disabled:opacity-30"
+                className="clay-btn bg-white text-[#121316] px-5 py-2.5 text-sm disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
@@ -276,7 +280,7 @@ const QuizScreen = () => {
               {currentQ < questions.length - 1 ? (
                 <button
                   onClick={goToNext}
-                  className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-sm hover:shadow-md transition font-semibold"
+                  className="clay-btn bg-cobalt text-white px-6 py-2.5 text-sm font-bold"
                 >
                   Next
                 </button>
@@ -284,25 +288,25 @@ const QuizScreen = () => {
                 <button
                   onClick={submitQuiz}
                   disabled={!allAnswered}
-                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm hover:shadow-lg transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="clay-btn bg-mint text-[#121316] px-6 py-2.5 text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Submit Quiz
                 </button>
               )}
             </div>
 
-            {/* Question dots for quick navigation */}
-            <div className="flex items-center justify-center gap-2 mt-6">
+            {/* Question Quick-Jump Dots */}
+            <div className="flex items-center justify-center gap-3 mt-8">
               {questions.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => setCurrentQ(i)}
-                  className={`w-8 h-8 rounded-full text-xs font-bold transition-all ${
+                  className={`w-9 h-9 border-[2px] border-[#121316] rounded-full font-grotesk font-bold text-xs flex items-center justify-center transition-all ${
                     i === currentQ
-                      ? 'bg-emerald-500 text-white scale-110'
+                      ? 'bg-cobalt text-white scale-110 shadow-sm'
                       : selectedAnswers[i]
-                      ? 'bg-emerald-100 text-emerald-600'
-                      : 'bg-slate-100 text-slate-400'
+                      ? 'bg-mint text-[#121316]'
+                      : 'bg-white text-stone-400'
                   }`}
                 >
                   {i + 1}
@@ -315,52 +319,56 @@ const QuizScreen = () => {
         {/* Results Phase */}
         {phase === 'results' && (
           <>
-            {/* Score Card */}
-            <div className={`rounded-3xl shadow-xl p-8 mb-8 text-center ${
+            {/* Score Card Banner */}
+            <div className={`clay-card-lg p-8 md:p-10 mb-8 text-center relative overflow-hidden ${
               scorePercent >= 80
-                ? 'bg-gradient-to-br from-emerald-500 to-teal-500'
+                ? 'bg-mint text-[#121316]'
                 : scorePercent >= 50
-                ? 'bg-gradient-to-br from-amber-500 to-orange-500'
-                : 'bg-gradient-to-br from-rose-500 to-pink-500'
+                ? 'bg-gold text-[#121316]'
+                : 'bg-coral text-white'
             }`}>
-              <Trophy size={48} className="text-white/80 mx-auto mb-3" />
-              <h2 className="text-5xl font-extrabold text-white mb-2">
+              <div className="clay-circle bg-white text-[#121316] p-3 inline-flex mx-auto mb-3 shadow-md">
+                <Trophy size={40} />
+              </div>
+              <h2 className="text-6xl md:text-7xl font-syne font-extrabold tracking-tight mb-2">
                 {score}/{totalQuestions}
               </h2>
-              <p className="text-white/80 text-lg font-medium">
+              <p className="font-syne font-bold text-xl md:text-2xl mb-4">
                 {scorePercent >= 80
-                  ? 'Excellent work! 🎉'
+                  ? 'Outstanding Mastery! 🎉'
                   : scorePercent >= 50
-                  ? 'Good effort! Keep practicing 💪'
-                  : 'Keep going! Review the chapter and try again 📖'}
+                  ? 'Good Effort! Keep practicing 💪'
+                  : 'Review the chapter and try again 📖'}
               </p>
-              <div className="mt-4 h-3 bg-white/20 rounded-full overflow-hidden max-w-xs mx-auto">
+              
+              <div className="h-4 bg-black/20 border-2 border-[#121316] rounded-full overflow-hidden max-w-xs mx-auto p-0.5">
                 <div
-                  className="h-full bg-white/60 rounded-full transition-all duration-700"
+                  className="h-full bg-white rounded-full transition-all duration-700"
                   style={{ width: `${scorePercent}%` }}
                 />
               </div>
             </div>
 
-            {/* Detailed Results */}
+            {/* Detailed Results List */}
             <div className="space-y-4">
               {results.map((result, i) => (
                 <div
                   key={i}
-                  className={`bg-white rounded-2xl shadow-sm border-2 p-6 ${
-                    result.is_correct ? 'border-emerald-200' : 'border-rose-200'
+                  className={`clay-card bg-white p-6 relative overflow-hidden ${
+                    result.is_correct ? 'border-l-[8px] border-l-mint' : 'border-l-[8px] border-l-coral'
                   }`}
                 >
                   <div className="flex items-start gap-3">
                     {result.is_correct ? (
-                      <CheckCircle2 size={24} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                      <CheckCircle2 size={24} className="text-emerald-600 flex-shrink-0 mt-1" />
                     ) : (
-                      <XCircle size={24} className="text-rose-500 flex-shrink-0 mt-0.5" />
+                      <XCircle size={24} className="text-coral flex-shrink-0 mt-1" />
                     )}
                     <div className="flex-1">
-                      <h3 className="font-bold text-slate-800 mb-3">
+                      <h3 className="font-syne font-bold text-base md:text-lg text-[#121316] mb-3">
                         Q{i + 1}. {result.question}
                       </h3>
+                      
                       <div className="space-y-2">
                         {result.options.map((option, j) => {
                           const optionLetter = option.charAt(0);
@@ -369,17 +377,17 @@ const QuizScreen = () => {
                           return (
                             <div
                               key={j}
-                              className={`px-4 py-2 rounded-lg text-sm ${
+                              className={`px-4 py-2.5 rounded-xl border-2 text-sm font-medium ${
                                 isCorrect
-                                  ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                                  ? 'bg-mint/30 border-[#121316] text-[#121316] font-bold'
                                   : isStudentAnswer && !isCorrect
-                                  ? 'bg-rose-50 text-rose-700 line-through'
-                                  : 'bg-slate-50 text-slate-600'
+                                  ? 'bg-coral/20 border-coral text-coral line-through'
+                                  : 'bg-canvas border-stone-200 text-stone-600'
                               }`}
                             >
-                              {option}
-                              {isCorrect && ' ✓'}
-                              {isStudentAnswer && !isCorrect && ' ✗ (your answer)'}
+                              <span>{option}</span>
+                              {isCorrect && ' ✓ (Correct Answer)'}
+                              {isStudentAnswer && !isCorrect && ' ✗ (Your Selection)'}
                             </div>
                           );
                         })}
@@ -387,11 +395,12 @@ const QuizScreen = () => {
 
                       {/* AI Explanation */}
                       {!result.is_correct && analysisPhase === 'done' && (
-                        <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                          <div className="flex items-center text-purple-600 font-bold text-sm mb-2 uppercase tracking-wide">
-                            <Bot size={16} className="mr-1.5" /> AI Explanation
+                        <div className="mt-4 p-4 clay-card-sm bg-canvas border-l-4 border-l-lilac">
+                          <div className="flex items-center text-[#121316] font-grotesk font-bold text-xs mb-2 uppercase tracking-wide">
+                            <Bot size={16} className="mr-1.5 text-purple-600" />
+                            <span>AI Concept Breakdown</span>
                           </div>
-                          <div className="prose prose-sm prose-slate max-w-none">
+                          <div className="prose prose-sm prose-slate max-w-none font-jakarta text-stone-800">
                             <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                               {formatMath(explanations.find(e => e.order === (i + 1))?.explanation || 'No explanation available.')}
                             </ReactMarkdown>
@@ -406,31 +415,42 @@ const QuizScreen = () => {
 
             {/* Analysis Loading / Concepts Section */}
             {analysisPhase === 'loading' && (
-              <div className="mt-8 flex flex-col items-center justify-center p-8 bg-white/50 rounded-3xl border-2 border-dashed border-emerald-200">
-                <Loader2 size={40} className="animate-spin text-emerald-500 mb-4" />
-                <p className="text-slate-600 font-bold">Orbee is analyzing your answers...</p>
-                <p className="text-slate-500 text-sm mt-1">Identifying concepts to review</p>
+              <div className="clay-card bg-white p-8 my-8 flex flex-col items-center justify-center text-center space-y-3">
+                <div className="clay-spinner"></div>
+                <p className="font-syne font-bold text-lg text-[#121316]">Orbee is analyzing your responses...</p>
+                <p className="font-grotesk text-xs uppercase tracking-wider text-stone-500">Mapping conceptual understanding offline</p>
               </div>
             )}
             
             {analysisPhase === 'error' && (
-              <div className="mt-8 p-6 bg-red-50 border border-red-200 rounded-2xl text-center">
-                <p className="text-red-600 font-medium">Failed to analyze weak concepts.</p>
-                <button onClick={() => attemptId && analyzeQuiz(attemptId)} className="mt-3 text-sm font-semibold text-red-700 underline">Retry Analysis</button>
+              <div className="clay-card bg-white p-6 my-8 border-l-[8px] border-l-coral text-center space-y-2">
+                <p className="font-syne font-bold text-coral">Failed to analyze weak concepts.</p>
+                <button 
+                  onClick={() => attemptId && analyzeQuiz(attemptId)} 
+                  className="clay-btn bg-coral text-white px-4 py-2 text-xs"
+                >
+                  Retry Analysis
+                </button>
               </div>
             )}
 
             {analysisPhase === 'done' && scorePercent < 100 && weakConcepts.length > 0 && (
-              <div className="mt-12 mb-8">
-                <h3 className="text-2xl font-extrabold text-slate-800 mb-6 flex items-center">
-                  <Bot className="mr-3 text-purple-500" size={32} /> Concepts to Review
-                </h3>
-                <div className="grid gap-6">
+              <div className="mt-10 mb-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="clay-circle bg-lilac text-[#121316] p-2">
+                    <Bot size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-syne font-extrabold text-[#121316]">Concepts to Review</h3>
+                    <p className="font-grotesk text-xs uppercase tracking-wider text-stone-500">Personalized on-device study recommendations</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4">
                   {weakConcepts.map((concept, idx) => (
-                    <div key={idx} className="bg-white rounded-3xl shadow-md border border-slate-100 p-8 overflow-hidden relative">
-                      <div className="absolute top-0 left-0 w-2 h-full bg-purple-500" />
-                      <h4 className="text-lg font-bold text-slate-800 mb-3">{concept.concept_name}</h4>
-                      <div className="prose prose-sm prose-slate max-w-none">
+                    <div key={idx} className="clay-card bg-white p-6 border-l-[8px] border-l-lilac">
+                      <h4 className="font-syne font-bold text-lg text-[#121316] mb-2">{concept.concept_name}</h4>
+                      <div className="prose prose-sm prose-slate max-w-none text-stone-800 font-jakarta">
                         <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                           {formatMath(concept.explanation)}
                         </ReactMarkdown>
@@ -442,9 +462,9 @@ const QuizScreen = () => {
             )}
 
             {analysisPhase === 'done' && scorePercent === 100 && (
-              <div className="mt-8 p-6 bg-emerald-100 border border-emerald-200 rounded-2xl text-center">
-                <p className="text-emerald-800 font-bold text-lg">Perfect Score!</p>
-                <p className="text-emerald-700 mt-1">No weak concepts detected. You've mastered this chapter.</p>
+              <div className="clay-card bg-mint text-[#121316] p-8 my-8 text-center">
+                <p className="font-syne font-extrabold text-2xl mb-1">Perfect Score! 🌟</p>
+                <p className="font-jakarta font-medium text-stone-800">You've completely mastered all concepts in this chapter!</p>
               </div>
             )}
           </>

@@ -32,27 +32,43 @@ const Registration = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4">
-      <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center text-slate-800 mb-2">ORBIS</h1>
-        <p className="text-center text-slate-500 mb-8">Let's get started on your learning journey!</p>
+    <div className="flex items-center justify-center min-h-screen bg-canvas p-4 relative overflow-hidden">
+      {/* Decorative stickers */}
+      <div className="absolute top-10 left-10 clay-chip bg-cobalt text-white px-3 py-1.5 sticker-tilt-left hidden md:block">
+        ✏️ STUDENT SETUP
+      </div>
+      <div className="absolute bottom-10 right-10 clay-chip bg-gold text-structural px-3 py-1.5 sticker-tilt-right hidden md:block">
+        🚀 READY TO LEARN
+      </div>
+      <div className="absolute top-10 right-10 clay-chip bg-mint text-structural px-3 py-1.5 sticker-tilt-right flex items-center gap-2">
+        <span className="neon-dot"></span>
+        OFFLINE
+      </div>
+
+      <div className="bg-white p-8 md:p-10 clay-card-lg w-full max-w-md">
+        <h1 className="font-syne text-4xl font-[900] text-center text-structural mb-1">ORBIS</h1>
+        <p className="text-center text-on-surface-variant font-jakarta mb-8">Let's get started on your learning journey!</p>
         
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-            <input required type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="John Doe" />
+            <label className="label-text text-xs text-on-surface-variant block mb-1.5">Full Name</label>
+            <input required type="text" name="name" value={formData.name} onChange={handleChange}
+              className="w-full px-4 py-3 clay-input" placeholder="John Doe" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Age</label>
-            <input required type="number" name="age" value={formData.age} onChange={handleChange} min="4" max="20" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="10" />
+            <label className="label-text text-xs text-on-surface-variant block mb-1.5">Age</label>
+            <input required type="number" name="age" value={formData.age} onChange={handleChange} min="4" max="20"
+              className="w-full px-4 py-3 clay-input" placeholder="10" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">School Name</label>
-            <input required type="text" name="school_name" value={formData.school_name} onChange={handleChange} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="Springfield Elementary" />
+            <label className="label-text text-xs text-on-surface-variant block mb-1.5">School Name</label>
+            <input required type="text" name="school_name" value={formData.school_name} onChange={handleChange}
+              className="w-full px-4 py-3 clay-input" placeholder="Springfield Elementary" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Grade</label>
-            <select required name="grade" value={formData.grade} onChange={handleChange} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition bg-white">
+            <label className="label-text text-xs text-on-surface-variant block mb-1.5">Grade</label>
+            <select required name="grade" value={formData.grade} onChange={handleChange}
+              className="w-full px-4 py-3 clay-select">
               <option value="Grade 1">Grade 1</option>
               <option value="Grade 2">Grade 2</option>
               <option value="Grade 3">Grade 3</option>
@@ -61,11 +77,12 @@ const Registration = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Mentor Name</label>
-            <input required type="text" name="mentor_name" value={formData.mentor_name} onChange={handleChange} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="Mr. Smith" />
+            <label className="label-text text-xs text-on-surface-variant block mb-1.5">Mentor Name</label>
+            <input required type="text" name="mentor_name" value={formData.mentor_name} onChange={handleChange}
+              className="w-full px-4 py-3 clay-input" placeholder="Mr. Smith" />
           </div>
-          <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition shadow-lg hover:shadow-xl">
-            Start Exploring
+          <button type="submit" className="w-full clay-btn bg-cobalt text-white py-3.5 text-base tracking-wide">
+            Start Exploring →
           </button>
         </form>
       </div>

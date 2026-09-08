@@ -160,142 +160,185 @@ const ChapterContent = () => {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-50 flex justify-center items-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+    <div className="min-h-screen bg-canvas flex flex-col justify-center items-center gap-4">
+      <div className="clay-spinner"></div>
+      <p className="font-grotesk font-bold text-sm tracking-widest text-[#121316] uppercase">Loading Chapter...</p>
     </div>
   );
 
-  if (!chapter) return <div className="p-10 text-center">Chapter not found.</div>;
+  if (!chapter) return (
+    <div className="min-h-screen bg-canvas flex flex-col items-center justify-center p-10">
+      <div className="clay-card bg-white p-8 max-w-md text-center">
+        <p className="font-syne font-bold text-xl mb-4 text-[#121316]">Chapter not found.</p>
+        <button onClick={() => navigate(-1)} className="clay-btn bg-cobalt text-white px-6 py-2">
+          Go Back
+        </button>
+      </div>
+    </div>
+  );
 
   const videoResource = chapter.resources.find(r => r.resource_type === 'video');
   const notesResource = chapter.resources.find(r => r.resource_type === 'notes');
   const textbookResource = chapter.resources.find(r => r.resource_type === 'textbook');
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-5xl mx-auto p-4 md:p-6 lg:p-8">
-        <button 
-          onClick={() => navigate(-1)}
-          className="flex items-center text-slate-500 hover:text-slate-800 transition mb-6 font-medium"
-        >
-          <ArrowLeft className="mr-2" size={20} /> Back
-        </button>
+    <div className="min-h-screen bg-canvas text-[#121316] font-jakarta pb-16">
+      <div className="max-w-6xl mx-auto p-4 md:p-6 lg:p-8">
+        
+        {/* Top bar */}
+        <div className="flex items-center justify-between mb-6">
+          <button 
+            onClick={() => navigate(-1)}
+            className="clay-btn bg-white text-[#121316] hover:bg-canvas px-4 py-2 text-sm flex items-center gap-2"
+          >
+            <ArrowLeft size={18} />
+            <span>Back to Chapters</span>
+          </button>
 
-        <h1 className="text-3xl font-extrabold text-slate-800 mb-6">{chapter.title}</h1>
+          <div className="clay-chip bg-mint text-[#121316] px-3.5 py-1 flex items-center gap-2 shadow-sm">
+            <span className="neon-dot"></span>
+            <span>Offline Ready</span>
+          </div>
+        </div>
+
+        {/* Title and Badge */}
+        <div className="mb-8">
+          <div className="inline-block clay-chip bg-gold text-[#121316] px-3 py-1 text-xs mb-2">
+            CHAPTER {chapter.order || 1}
+          </div>
+          <h1 className="text-3xl md:text-5xl font-syne font-extrabold text-[#121316] tracking-tight">
+            {chapter.title}
+          </h1>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Main Content Area */}
-          <div className="max-w-7xl mx-auto space-y-8 lg:col-span-2">
-        
-        {/* Video Player Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden relative">
-          
-          {focusModeActive && (
-            <AttentionTracker 
-              isActive={focusModeActive}
-              onDistracted={() => {
-                if (!isDistracted) {
-                  setIsDistracted(true);
-                  if (mainVideoRef.current) {
-                    mainVideoRef.current.pause();
-                  }
-                }
-              }}
-              onFocused={() => {
-                // If they were distracted, they must manually click 'Resume' 
-                // so we don't automatically un-pause the video here, 
-                // but we could clear the distracted state if we wanted.
-              }}
-            />
-          )}
-
-          {isDistracted && (
-            <div className="absolute inset-0 bg-black bg-opacity-80 z-40 flex flex-col items-center justify-center text-white space-y-4">
-              <Brain size={64} className="text-indigo-400 animate-pulse" />
-              <h2 className="text-3xl font-bold">Are you still there?</h2>
-              <p className="text-slate-300">We noticed you looked away for a while.</p>
-              <button 
-                onClick={() => {
-                  setIsDistracted(false);
-                  if (mainVideoRef.current) {
-                    mainVideoRef.current.play();
-                  }
-                }}
-                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-bold transition-colors"
-              >
-                I'm back, resume video!
-              </button>
-            </div>
-          )}
-
-          <div className="aspect-video bg-black relative">
-            <video 
-              ref={mainVideoRef}
-              src={videoResource ? encodeURI(videoResource.file_path) : ''}
-              controls 
-              className="w-full h-full object-contain"
-              onPlay={() => setIsDistracted(false)}
-            />
-          </div>
-          
-          <div className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
-              <h2 className="text-3xl font-extrabold text-slate-800">{chapter.title}</h2>
-              <p className="text-slate-500 mt-2 flex items-center space-x-2">
-                <PlayCircle size={18} />
-                <span>Video Lesson</span>
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => setFocusModeActive(!focusModeActive)}
-                className={`flex items-center space-x-2 px-5 py-3 rounded-xl font-semibold transition-all shadow-sm ${
-                  focusModeActive ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50'
-                }`}
-              >
-                <Eye size={20} />
-                <span>{focusModeActive ? 'Focus Mode On' : 'Enable Focus Mode'}</span>
-              </button>
-              <button 
-                onClick={handleSummarize}
-                disabled={isSummarizing}
-                className="flex-1 flex items-center justify-center py-3 px-4 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-semibold rounded-xl transition disabled:opacity-50"
-              >
-                <Sparkles size={20} className="mr-2" />
-                {isSummarizing ? 'Summarizing...' : 'Summarize Video'}
-              </button>
+          <div className="space-y-8 lg:col-span-2">
+            
+            {/* Video Player Section */}
+            <div className="clay-card-lg bg-white overflow-hidden relative">
               
-              <button 
-                onClick={() => setShowChatbot(!showChatbot)}
-                className="flex-1 flex items-center justify-center py-3 px-4 bg-purple-100 hover:bg-purple-200 text-purple-700 font-semibold rounded-xl transition"
-              >
-                <MessageCircle size={20} className="mr-2" />
-                AI Chatbot
-              </button>
+              {focusModeActive && (
+                <AttentionTracker 
+                  isActive={focusModeActive}
+                  onDistracted={() => {
+                    if (!isDistracted) {
+                      setIsDistracted(true);
+                      if (mainVideoRef.current) {
+                        mainVideoRef.current.pause();
+                      }
+                    }
+                  }}
+                  onFocused={() => {}}
+                />
+              )}
+
+              {isDistracted && (
+                <div className="absolute inset-0 bg-[#121316]/90 z-40 flex flex-col items-center justify-center text-white p-6 text-center space-y-4 backdrop-blur-sm">
+                  <div className="clay-circle bg-lilac text-[#121316] p-4">
+                    <Brain size={48} className="animate-pulse" />
+                  </div>
+                  <h2 className="text-3xl font-syne font-extrabold text-gold">Are you still there?</h2>
+                  <p className="text-stone-300 font-jakarta max-w-sm">We noticed you looked away for a while. Let's stay focused on the lesson!</p>
+                  <button 
+                    onClick={() => {
+                      setIsDistracted(false);
+                      if (mainVideoRef.current) {
+                        mainVideoRef.current.play();
+                      }
+                    }}
+                    className="clay-btn bg-gold text-[#121316] px-6 py-3 font-grotesk font-bold text-sm tracking-wide"
+                  >
+                    I'm back, resume video!
+                  </button>
+                </div>
+              )}
+
+              <div className="aspect-video bg-[#121316] relative border-b-[3px] border-[#121316]">
+                <video 
+                  ref={mainVideoRef}
+                  src={videoResource ? encodeURI(videoResource.file_path) : ''}
+                  controls 
+                  className="w-full h-full object-contain"
+                  onPlay={() => setIsDistracted(false)}
+                />
+              </div>
               
-              <button 
-                onClick={handleVoiceAssistantToggle}
-                className={`flex-1 flex items-center justify-center py-3 px-4 ${
-                  isRecording
-                    ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                    : 'bg-pink-100 hover:bg-pink-200 text-pink-700'
-                } font-semibold rounded-xl transition`}
-              >
-                <Mic size={20} className="mr-2" />
-                {isRecording ? 'Stop Recording' : voiceProcessing ? 'Processing...' : 'Voice Assistant'}
-              </button>
-            </div>
-          </div>
-        </div>{/* End video card */}
+              <div className="p-6 md:p-8 space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl md:text-3xl font-syne font-extrabold text-[#121316]">{chapter.title}</h2>
+                    <p className="text-stone-600 mt-1 flex items-center gap-2 font-grotesk text-sm font-semibold">
+                      <PlayCircle size={18} className="text-cobalt" />
+                      <span>Interactive Video Lesson</span>
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => setFocusModeActive(!focusModeActive)}
+                    className={`clay-btn px-4 py-2.5 flex items-center gap-2 text-sm font-grotesk transition-all ${
+                      focusModeActive 
+                        ? 'bg-cobalt text-white' 
+                        : 'bg-canvas text-[#121316] hover:bg-white'
+                    }`}
+                  >
+                    <Eye size={18} />
+                    <span>{focusModeActive ? 'Focus Mode ON' : 'Enable Focus Mode'}</span>
+                  </button>
+                </div>
+
+                {/* Tactical Action Buttons Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                  <button 
+                    onClick={handleSummarize}
+                    disabled={isSummarizing}
+                    className="clay-btn py-3 px-4 bg-gold text-[#121316] font-grotesk font-bold flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Sparkles size={18} />
+                    <span>{isSummarizing ? 'Summarizing...' : 'Summarize Video'}</span>
+                  </button>
+                  
+                  <button 
+                    onClick={() => setShowChatbot(!showChatbot)}
+                    className={`clay-btn py-3 px-4 font-grotesk font-bold flex items-center justify-center gap-2 text-sm transition-all ${
+                      showChatbot 
+                        ? 'bg-lilac text-[#121316] ring-2 ring-[#121316]' 
+                        : 'bg-canvas hover:bg-lilac text-[#121316]'
+                    }`}
+                  >
+                    <MessageCircle size={18} />
+                    <span>AI Chatbot</span>
+                  </button>
+                  
+                  <button 
+                    onClick={handleVoiceAssistantToggle}
+                    className={`clay-btn py-3 px-4 font-grotesk font-bold flex items-center justify-center gap-2 text-sm ${
+                      isRecording
+                        ? 'bg-coral text-white animate-pulse'
+                        : 'bg-canvas hover:bg-coral hover:text-white text-[#121316]'
+                    }`}
+                  >
+                    <Mic size={18} />
+                    <span>{isRecording ? 'Stop Recording' : voiceProcessing ? 'Processing...' : 'Voice Assistant'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>{/* End video card */}
 
             {/* AI Summary Output */}
             {summary && (
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-indigo-100">
-                <div className="flex items-center text-indigo-600 mb-3 font-bold text-lg">
-                  <Sparkles size={22} className="mr-2" /> AI Summary
+              <div className="clay-card bg-white p-6 md:p-8 relative overflow-hidden border-l-[8px] border-l-cobalt">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="clay-circle bg-gold p-2 text-[#121316]">
+                    <Sparkles size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-syne font-extrabold text-xl text-[#121316]">AI Chapter Summary</h3>
+                    <p className="font-grotesk text-xs text-stone-500 uppercase tracking-wider">Key Takeaways & Concepts</p>
+                  </div>
                 </div>
-                <div className="prose prose-indigo max-w-none text-slate-700 leading-relaxed">
+                <div className="prose prose-slate max-w-none text-stone-800 leading-relaxed font-jakarta">
                   <ReactMarkdown>{summary}</ReactMarkdown>
                 </div>
               </div>
@@ -303,99 +346,132 @@ const ChapterContent = () => {
 
             {/* Voice Assistant Response */}
             {(voiceTranscribed || voiceTextResponse) && (
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-pink-100">
-                <div className="flex items-center text-pink-600 mb-3 font-bold">
-                  <Mic size={20} className="mr-2" /> Voice Assistant
+              <div className="clay-card bg-white p-6 md:p-8 relative overflow-hidden border-l-[8px] border-l-coral">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="clay-circle bg-coral text-white p-2">
+                    <Mic size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-syne font-extrabold text-xl text-[#121316]">Voice Assistant Response</h3>
+                    <p className="font-grotesk text-xs text-stone-500 uppercase tracking-wider">Audio Doubt Solver</p>
+                  </div>
                 </div>
                 {voiceTranscribed && (
-                  <p className="text-slate-500 text-sm mb-2">
-                    <span className="font-medium">You said:</span> "{voiceTranscribed}"
-                  </p>
+                  <div className="clay-card-sm bg-canvas p-3 mb-4">
+                    <span className="font-grotesk font-bold text-xs uppercase tracking-wide text-coral mr-2">You asked:</span>
+                    <span className="text-stone-700 italic font-medium">"{voiceTranscribed}"</span>
+                  </div>
                 )}
                 {voiceTextResponse && (
-                  <p className="text-slate-700 leading-relaxed">{voiceTextResponse}</p>
+                  <p className="text-stone-800 leading-relaxed font-jakarta font-medium">{voiceTextResponse}</p>
                 )}
               </div>
             )}
 
             {/* Chatbot UI */}
             {showChatbot && (
-               <AIChatbot 
-                 chapterId={chapterId!} 
-                 chapterTitle={chapter?.title}
-                 subjectIdentifier={chapter?.subject_identifier}
-                 subjectName={chapter?.subject_name}
-               />
+              <div className="pt-2">
+                <AIChatbot 
+                  chapterId={chapterId!} 
+                  chapterTitle={chapter?.title}
+                  subjectIdentifier={chapter?.subject_identifier}
+                  subjectName={chapter?.subject_name}
+                />
+              </div>
             )}
 
           </div>{/* End main content column */}
 
           {/* Sidebar / Resources */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-              <h3 className="text-xl font-bold text-slate-800 mb-4">Chapter Resources</h3>
+            
+            {/* Chapter Resources Box */}
+            <div className="clay-card bg-white p-6 space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b-2 border-stone-200">
+                <h3 className="font-syne font-extrabold text-xl text-[#121316]">Resources</h3>
+                <span className="clay-chip bg-canvas text-[#121316] px-2 py-0.5 text-[10px]">OFFLINE FILES</span>
+              </div>
               
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {notesResource ? (
-                  <a href={notesResource.file_path} target="_blank" rel="noreferrer" className="flex items-center p-4 bg-slate-50 hover:bg-slate-100 rounded-xl transition group">
-                    <div className="bg-blue-100 text-blue-600 p-2 rounded-lg mr-4 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                      <FileText size={24} />
+                  <a 
+                    href={notesResource.file_path} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="clay-card-sm bg-canvas hover:bg-white p-4 flex items-center gap-4 transition-transform hover:-translate-y-0.5 group block"
+                  >
+                    <div className="clay-circle bg-cobalt text-white p-2.5 flex-shrink-0 group-hover:scale-105 transition-transform">
+                      <FileText size={22} />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-slate-800">Chapter Notes</h4>
-                      <p className="text-sm text-slate-500">PDF Document</p>
+                      <h4 className="font-syne font-bold text-sm text-[#121316]">Chapter Notes</h4>
+                      <p className="font-grotesk text-xs text-stone-500 uppercase tracking-wider mt-0.5">PDF Document</p>
                     </div>
                   </a>
                 ) : (
-                   <div className="flex items-center p-4 bg-slate-50 rounded-xl opacity-50">
-                    <FileText size={24} className="mr-4 text-slate-400" />
-                    <span className="text-slate-500 font-medium">No Notes Available</span>
+                  <div className="clay-card-sm bg-stone-100 p-4 flex items-center gap-3 opacity-60">
+                    <FileText size={22} className="text-stone-400" />
+                    <span className="font-grotesk text-xs uppercase tracking-wide text-stone-500 font-bold">No Notes Available</span>
                   </div>
                 )}
 
                 {textbookResource ? (
-                  <a href={textbookResource.file_path} target="_blank" rel="noreferrer" className="flex items-center p-4 bg-slate-50 hover:bg-slate-100 rounded-xl transition group">
-                    <div className="bg-emerald-100 text-emerald-600 p-2 rounded-lg mr-4 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                      <Book size={24} />
+                  <a 
+                    href={textbookResource.file_path} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="clay-card-sm bg-canvas hover:bg-white p-4 flex items-center gap-4 transition-transform hover:-translate-y-0.5 group block"
+                  >
+                    <div className="clay-circle bg-mint text-[#121316] p-2.5 flex-shrink-0 group-hover:scale-105 transition-transform">
+                      <Book size={22} />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-slate-800">Textbook Excerpt</h4>
-                      <p className="text-sm text-slate-500">PDF Document</p>
+                      <h4 className="font-syne font-bold text-sm text-[#121316]">Textbook Excerpt</h4>
+                      <p className="font-grotesk text-xs text-stone-500 uppercase tracking-wider mt-0.5">PDF Document</p>
                     </div>
                   </a>
                 ) : (
-                  <div className="flex items-center p-4 bg-slate-50 rounded-xl opacity-50">
-                    <Book size={24} className="mr-4 text-slate-400" />
-                    <span className="text-slate-500 font-medium">No Textbook Available</span>
+                  <div className="clay-card-sm bg-stone-100 p-4 flex items-center gap-3 opacity-60">
+                    <Book size={22} className="text-stone-400" />
+                    <span className="font-grotesk text-xs uppercase tracking-wide text-stone-500 font-bold">No Textbook Available</span>
                   </div>
                 )}
               </div>
             </div>
             
-            {/* Practice Section — Wired to real pages */}
-            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-2xl shadow-md text-white">
-              <h3 className="font-bold text-lg mb-2">Practice Time!</h3>
-              <p className="text-indigo-100 text-sm mb-4">
-                Generate flashcards or take a quiz based on this chapter.
+            {/* Practice Section — Neo-Clay Gold Punch Card */}
+            <div className="clay-card bg-gold p-6 text-[#121316] relative overflow-hidden">
+              <div className="flex items-center justify-between mb-3">
+                <span className="clay-chip bg-white text-[#121316] px-2.5 py-0.5 text-[10px] uppercase font-bold tracking-wider">
+                  EXAM DRILL
+                </span>
+                <span className="text-xl">⚡</span>
+              </div>
+              
+              <h3 className="font-syne font-extrabold text-2xl text-[#121316] mb-1">Practice Time!</h3>
+              <p className="font-jakarta text-sm text-[#121316]/80 mb-5 font-medium">
+                Test your mastery with AI flashcards or a quick chapter quiz.
               </p>
+              
               <div className="space-y-3">
                 <button
                   onClick={() => navigate(`/chapters/${chapterId}/flashcards`)}
-                  className="w-full flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-2.5 rounded-lg font-semibold transition"
+                  className="clay-btn w-full bg-white text-[#121316] hover:bg-stone-50 py-3 flex items-center justify-center gap-2.5 text-sm font-bold"
                 >
-                  <Layers size={18} />
-                  Flashcards
+                  <Layers size={18} className="text-cobalt" />
+                  <span>Flashcards</span>
                 </button>
                 <button
                   onClick={() => navigate(`/chapters/${chapterId}/quiz`)}
-                  className="w-full flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm py-2.5 rounded-lg font-semibold transition"
+                  className="clay-btn w-full bg-cobalt text-white hover:bg-blue-700 py-3 flex items-center justify-center gap-2.5 text-sm font-bold"
                 >
-                  <Brain size={18} />
-                  Take Quiz
+                  <Brain size={18} className="text-gold" />
+                  <span>Take Chapter Quiz</span>
                 </button>
               </div>
             </div>
-          </div>
+
+          </div>{/* End sidebar */}
 
         </div>
       </div>

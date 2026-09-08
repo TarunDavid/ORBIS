@@ -48,12 +48,10 @@ const AttentionTracker: React.FC<AttentionTrackerProps> = ({ isActive, onDistrac
     }
 
     return () => {
-      // Clear the detection interval when camera stops or component unmounts
       if (checkIntervalRef.current) {
         clearInterval(checkIntervalRef.current);
         checkIntervalRef.current = null;
       }
-      // Stop camera tracks using the ref (avoids race condition)
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
@@ -63,7 +61,7 @@ const AttentionTracker: React.FC<AttentionTrackerProps> = ({ isActive, onDistrac
 
   const handleVideoPlay = () => {
     if (!checkIntervalRef.current) {
-      lastSeenRef.current = Date.now(); // Reset timer when video starts
+      lastSeenRef.current = Date.now();
       checkIntervalRef.current = window.setInterval(async () => {
         if (videoRef.current) {
           const detections = await faceapi.detectAllFaces(
@@ -76,22 +74,22 @@ const AttentionTracker: React.FC<AttentionTrackerProps> = ({ isActive, onDistrac
             onFocused();
           } else {
             const timeSinceLastSeen = Date.now() - lastSeenRef.current;
-            if (timeSinceLastSeen > 10000) { // 10 seconds threshold
+            if (timeSinceLastSeen > 10000) {
               onDistracted();
             }
           }
         }
-      }, 1000); // Check every second
+      }, 1000);
     }
   };
 
   if (!isActive) return null;
 
   return (
-    <div className="absolute top-4 right-4 w-32 h-24 bg-black rounded-lg overflow-hidden shadow-lg border-2 border-indigo-500 z-50">
+    <div className="absolute top-4 right-4 w-36 h-28 bg-[#121316] rounded-2xl overflow-hidden border-[3px] border-cobalt shadow-[4px_4px_0px_#121316] z-50">
       {cameraError ? (
-        <div className="w-full h-full flex items-center justify-center text-xs text-white text-center p-2 bg-red-900">
-          Camera Error
+        <div className="w-full h-full flex flex-col items-center justify-center text-[10px] text-white text-center p-2 bg-coral font-grotesk font-bold uppercase tracking-wider">
+          <span>Camera Error</span>
         </div>
       ) : (
         <video
@@ -99,14 +97,20 @@ const AttentionTracker: React.FC<AttentionTrackerProps> = ({ isActive, onDistrac
           autoPlay
           muted
           onPlay={handleVideoPlay}
-          className="w-full h-full object-cover transform -scale-x-100" // Mirrors the video
+          className="w-full h-full object-cover transform -scale-x-100"
         />
       )}
       {!modelsLoaded && !cameraError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white text-xs">
+        <div className="absolute inset-0 flex items-center justify-center bg-[#121316]/80 text-white text-[10px] font-grotesk font-bold tracking-wider uppercase">
           Loading AI...
         </div>
       )}
+      <div className="absolute bottom-1 right-1">
+        <span className="clay-chip bg-mint text-[#121316] px-1.5 py-0.2 text-[8px] flex items-center gap-1 scale-90">
+          <span className="neon-dot w-1.5 h-1.5"></span>
+          <span>FOCUS</span>
+        </span>
+      </div>
     </div>
   );
 };

@@ -1,8 +1,253 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-@layer base {
-  body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+@theme {
+  /* Core Neo-Clay Palette */
+  --color-canvas: #FAF7F2;
+  --color-canvas-subtle: #F3EFEA;
+  --color-surface: #FFFFFF;
+  --color-on-surface: #121316;
+  
+  --color-cobalt: #2547F4;
+  --color-cobalt-light: #4A6CF7;
+  --color-cobalt-dark: #1B35B8;
+  
+  --color-gold: #FFCD1E;
+  --color-gold-light: #FFE066;
+  --color-gold-dark: #D4A800;
+  
+  --color-mint: #0BD88F;
+  --color-mint-light: #4EEDB7;
+  --color-mint-dark: #08A86F;
+  
+  --color-coral: #FF5376;
+  --color-coral-light: #FF859F;
+  --color-coral-dark: #CC294D;
+  
+  --color-lilac: #A882FF;
+  --color-lilac-light: #C4AAFF;
+  --color-lilac-dark: #7A4EE0;
+  
+  --color-structural: #121316;
+  --color-structural-black: #121316;
+  --color-on-surface-variant: #595c5e;
+
+  --radius-clay: 16px;
+  --shadow-clay-3: 8px 8px 0px #121316;
+
+  /* Typography */
+  --font-syne: 'Syne', sans-serif;
+  --font-jakarta: 'Plus Jakarta Sans', sans-serif;
+  --font-grotesk: 'Space Grotesk', sans-serif;
+}
+
+/* ============================================
+   ORBIS — Tactile Neo-Clay Maximalist Design
+   ============================================ */
+
+body {
+  background-color: #FAF7F2;
+  color: #121316;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Syne', sans-serif;
+}
+
+/* === Clay Card === */
+.clay-card {
+  border: 3px solid #121316;
+  border-radius: 16px;
+  box-shadow:
+    5px 5px 0px #121316,
+    inset 3px 3px 0px rgba(255, 255, 255, 0.65),
+    inset -3px -3px 0px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.clay-card-lg {
+  border: 3px solid #121316;
+  border-radius: 16px;
+  box-shadow:
+    8px 8px 0px #121316,
+    inset 3px 3px 0px rgba(255, 255, 255, 0.65),
+    inset -3px -3px 0px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.clay-card-sm {
+  border: 2px solid #121316;
+  border-radius: 12px;
+  box-shadow:
+    3px 3px 0px #121316,
+    inset 2px 2px 0px rgba(255, 255, 255, 0.65),
+    inset -2px -2px 0px rgba(0, 0, 0, 0.12);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+/* === Clay Button (Pill) === */
+.clay-btn {
+  border: 3px solid #121316;
+  border-radius: 9999px;
+  box-shadow:
+    4px 4px 0px #121316,
+    inset 3px 3px 0px rgba(255, 255, 255, 0.65),
+    inset -3px -3px 0px rgba(0, 0, 0, 0.15);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+  transition: box-shadow 0.1s ease, transform 0.1s ease;
+}
+
+.clay-btn:active {
+  transform: translate(4px, 4px);
+  box-shadow:
+    0px 0px 0px #121316,
+    inset 3px 3px 0px rgba(255, 255, 255, 0.65),
+    inset -3px -3px 0px rgba(0, 0, 0, 0.15);
+}
+
+.clay-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.clay-btn:disabled:active {
+  transform: none;
+  box-shadow:
+    4px 4px 0px #121316,
+    inset 3px 3px 0px rgba(255, 255, 255, 0.65),
+    inset -3px -3px 0px rgba(0, 0, 0, 0.15);
+}
+
+/* === Clay Input === */
+.clay-input {
+  background: #FAF7F2;
+  border: 3px solid #121316;
+  border-radius: 12px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.clay-input:focus {
+  background: #FFFFFF;
+  outline: none;
+  box-shadow: 4px 4px 0px #121316;
+}
+
+/* === Clay Select === */
+.clay-select {
+  background: #FAF7F2;
+  border: 3px solid #121316;
+  border-radius: 12px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23121316' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 40px;
+}
+
+.clay-select:focus {
+  background-color: #FFFFFF;
+  outline: none;
+  box-shadow: 4px 4px 0px #121316;
+}
+
+/* === Clay Chip / Badge === */
+.clay-chip {
+  border: 2px solid #121316;
+  border-radius: 9999px;
+  box-shadow: 3px 3px 0px #121316;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* === Sticker Tilts (Maximalist) === */
+.sticker-tilt-left {
+  transform: rotate(-2deg);
+}
+
+.sticker-tilt-right {
+  transform: rotate(3deg);
+}
+
+/* === Offline Neon Dot === */
+.neon-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0BD88F;
+  animation: neon-pulse 2s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes neon-pulse {
+  0%, 100% {
+    box-shadow: 0 0 4px #0BD88F, 0 0 8px #0BD88F;
   }
+  50% {
+    box-shadow: 0 0 8px #0BD88F, 0 0 16px #0BD88F, 0 0 24px rgba(11, 216, 143, 0.4);
+  }
+}
+
+/* === Clay Spinner === */
+.clay-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #121316;
+  border-radius: 8px;
+  border-top-color: #2547F4;
+  animation: clay-spin 0.8s linear infinite;
+}
+
+@keyframes clay-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* === Progress bar segment === */
+.clay-progress-segment {
+  height: 6px;
+  border: 2px solid #121316;
+  border-radius: 9999px;
+}
+
+/* === Clay Circle Icon Container === */
+.clay-circle {
+  border: 3px solid #121316;
+  border-radius: 50%;
+  box-shadow:
+    3px 3px 0px #121316,
+    inset 2px 2px 0px rgba(255, 255, 255, 0.65),
+    inset -2px -2px 0px rgba(0, 0, 0, 0.12);
+}
+
+/* === Label Typography === */
+.label-text {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.accent-stripe-left {
+  position: relative;
+}
+
+.accent-stripe-left::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  border-radius: 16px 0 0 16px;
 }
