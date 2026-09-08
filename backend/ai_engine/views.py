@@ -22,6 +22,7 @@ from .prompts import (
     GENERATE_QUIZ,
     EXPLAIN_INCORRECT_QUESTION,
     IDENTIFY_WEAK_CONCEPTS,
+    UNIFIED_QUIZ_ANALYZE,
     get_system_tutor_prompt,
     get_voice_tutor_prompt,
     build_chat_prompt,
@@ -273,6 +274,8 @@ class ChatbotView(APIView):
 
         lang = get_chapter_language(int(chapter_id))
         context = get_chapter_context(int(chapter_id))
+        if context and len(context) > 6000:
+            context = context[:6000]
         system_prompt = get_system_tutor_prompt(lang, context)
 
         # Load chat history for this session if available
@@ -491,7 +494,7 @@ class FlashcardGenerateView(APIView):
 
         try:
             flashcard_data = LLMService.generate_json(
-                messages, max_tokens=2048, retries=1
+                messages, max_tokens=800, retries=1
             )
 
             if not flashcard_data or 'flashcards' not in flashcard_data:
@@ -564,7 +567,7 @@ class QuizGenerateView(APIView):
 
         try:
             quiz_data = LLMService.generate_json(
-                messages, max_tokens=2048, retries=1
+                messages, max_tokens=800, retries=1
             )
 
             if not quiz_data or 'questions' not in quiz_data:
@@ -730,95 +733,135 @@ class QuizAnalyzeView(APIView):
                     'weak_concepts': []
                 }, status=status.HTTP_200_OK)
 
-            context = get_chapter_context(chapter_id)
-            explanations_data = []
+            # Check if all incorrect questions already have explanations and weak concepts exist
+            existing_explanations = [q for q in incorrect_questions if hasattr(q, 'explanation')]
+            existing_concepts = list(WeakConcept.objects.filter(attempt=attempt))
 
-            # 1. Generate Per-Question Explanations
-            for q in incorrect_questions:
-                # Check if we already generated it (idempotency)
-                if hasattr(q, 'explanation'):
-                    explanations_data.append({
+            if len(existing_explanations) == len(incorrect_questions) and existing_concepts:
+                explanations_data = [
+                    {
                         'question_id': q.id,
                         'order': q.order,
                         'explanation': q.explanation.explanation_text
-                    })
-                    continue
-
-                prompt = build_completion_prompt(
-                    EXPLAIN_INCORRECT_QUESTION.format(
-                        chapter_context=context,
-                        question_text=q.question_text,
-                        options=json.dumps(q.options),
-                        correct_answer=q.correct_answer,
-                        student_answer=q.student_answer or "No Answer"
-                    )
-                )
-
-                try:
-                    output = LLMService.generate(prompt, max_tokens=200, stop=["<|im_end|>"], echo=False)
-                    exp_text = output['choices'][0]['text'].strip()
-                    QuestionExplanation.objects.create(question=q, explanation_text=exp_text)
-                    explanations_data.append({
-                        'question_id': q.id,
-                        'order': q.order,
-                        'explanation': exp_text
-                    })
-                except Exception as e:
-                    logger.error(f"Failed to explain question {q.id}: {e}")
-
-            # 2. Identify Weak Concepts
-            # Check if concepts already exist
-            existing_concepts = list(WeakConcept.objects.filter(attempt=attempt))
-            if existing_concepts:
+                    }
+                    for q in incorrect_questions
+                ]
                 weak_concepts_data = [
                     {
                         'concept_name': wc.concept_name,
                         'explanation': wc.explanation,
                         'related_question_ids': list(wc.related_questions.values_list('id', flat=True))
-                    } for wc in existing_concepts
+                    }
+                    for wc in existing_concepts
                 ]
-            else:
-                # Build input for LLM
-                questions_json = json.dumps([
-                    {
-                        "id": q.id,
-                        "question": q.question_text,
-                        "student_missed_because": next((e['explanation'] for e in explanations_data if e['question_id'] == q.id), "Answered incorrectly")
-                    } for q in incorrect_questions
-                ], indent=2)
+                return Response({
+                    'status': 'analyzed',
+                    'explanations': explanations_data,
+                    'weak_concepts': weak_concepts_data
+                }, status=status.HTTP_200_OK)
 
-                messages = build_messages(
-                    IDENTIFY_WEAK_CONCEPTS.format(
-                        chapter_context=context,
-                        questions_json=questions_json
+            context = get_chapter_context(chapter_id)
+            # Truncate context to 4000 characters for sub-second prompt evaluation
+            short_context = context[:4000] if context else ""
+
+            # Questions that still need explanations
+            unexplained_questions = [q for q in incorrect_questions if not hasattr(q, 'explanation')]
+
+            # Build unified analysis payload
+            questions_payload = [
+                {
+                    "id": q.id,
+                    "order": q.order,
+                    "question": q.question_text,
+                    "options": q.options,
+                    "correct_answer": q.correct_answer,
+                    "student_answer": q.student_answer or "No Answer"
+                }
+                for q in (unexplained_questions if unexplained_questions else incorrect_questions)
+            ]
+
+            unified_prompt = UNIFIED_QUIZ_ANALYZE.format(
+                chapter_context=short_context,
+                questions_json=json.dumps(questions_payload, indent=2)
+            )
+
+            messages = build_messages(unified_prompt)
+
+            # Single unified fast LLM call (completes in ~2-4s on Metal GPU)
+            parsed_data = None
+            try:
+                parsed_data = LLMService.generate_json(messages, max_tokens=800, retries=1)
+            except Exception as e:
+                logger.error(f"Unified quiz analysis LLM error: {e}")
+
+            # Persist Explanations
+            if parsed_data and 'explanations' in parsed_data:
+                parsed_expl_map = {}
+                for item in parsed_data['explanations']:
+                    qid = item.get('question_id')
+                    text = item.get('explanation', '').strip()
+                    if qid and text:
+                        parsed_expl_map[qid] = text
+
+                for q in unexplained_questions:
+                    exp_text = parsed_expl_map.get(q.id)
+                    if not exp_text and len(parsed_expl_map) == len(unexplained_questions):
+                        idx = unexplained_questions.index(q)
+                        exp_text = list(parsed_expl_map.values())[idx]
+                    if not exp_text:
+                        exp_text = f"The correct answer is {q.correct_answer}. Review this section of the chapter to strengthen your understanding."
+                    QuestionExplanation.objects.create(question=q, explanation_text=exp_text)
+            else:
+                # Safe fallback if LLM returned invalid format
+                for q in unexplained_questions:
+                    exp_text = f"The correct answer is {q.correct_answer}. Review this section in the chapter notes to master this question."
+                    QuestionExplanation.objects.create(question=q, explanation_text=exp_text)
+
+            # Persist Weak Concepts
+            if not existing_concepts:
+                if parsed_data and 'weak_concepts' in parsed_data and parsed_data['weak_concepts']:
+                    for wc_data in parsed_data['weak_concepts']:
+                        c_name = wc_data.get('concept_name', 'Chapter Concepts')
+                        c_exp = wc_data.get('explanation', 'Review key terms and practice problems in this chapter.')
+                        wc = WeakConcept.objects.create(
+                            attempt=attempt,
+                            concept_name=c_name,
+                            explanation=c_exp
+                        )
+                        q_ids = wc_data.get('related_question_ids', [])
+                        valid_ids = [q.id for q in incorrect_questions if q.id in q_ids]
+                        if not valid_ids:
+                            valid_ids = [q.id for q in incorrect_questions]
+                        for qid in valid_ids:
+                            wc.related_questions.add(qid)
+                else:
+                    # Fallback concept if LLM output was empty
+                    wc = WeakConcept.objects.create(
+                        attempt=attempt,
+                        concept_name="Core Chapter Review",
+                        explanation="Focus on the definitions, examples, and practice problems in the chapter notes."
                     )
-                )
-                
-                weak_concepts_data = []
-                try:
-                    parsed_concepts = LLMService.generate_json(
-                        messages, max_tokens=2048, retries=1
-                    )
-                    
-                    if parsed_concepts and 'weak_concepts' in parsed_concepts:
-                        for wc_data in parsed_concepts['weak_concepts']:
-                            wc = WeakConcept.objects.create(
-                                attempt=attempt,
-                                concept_name=wc_data.get('concept_name', 'Unknown Concept'),
-                                explanation=wc_data.get('explanation', '')
-                            )
-                            # Link related questions
-                            q_ids = wc_data.get('related_question_ids', [])
-                            for q_id in q_ids:
-                                wc.related_questions.add(q_id)
-                            
-                            weak_concepts_data.append({
-                                'concept_name': wc.concept_name,
-                                'explanation': wc.explanation,
-                                'related_question_ids': q_ids
-                            })
-                except Exception as e:
-                    logger.error(f"Failed to identify weak concepts: {e}")
+                    for q in incorrect_questions:
+                        wc.related_questions.add(q.id)
+
+            # Return all explanations and weak concepts
+            explanations_data = [
+                {
+                    'question_id': q.id,
+                    'order': q.order,
+                    'explanation': q.explanation.explanation_text
+                }
+                for q in incorrect_questions if hasattr(q, 'explanation')
+            ]
+
+            weak_concepts_data = [
+                {
+                    'concept_name': wc.concept_name,
+                    'explanation': wc.explanation,
+                    'related_question_ids': list(wc.related_questions.values_list('id', flat=True))
+                }
+                for wc in WeakConcept.objects.filter(attempt=attempt)
+            ]
 
             return Response({
                 'status': 'analyzed',

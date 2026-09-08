@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, CheckCircle2, XCircle, Trophy, RotateCw, Bot, Clock, HelpCircle, Award } from 'lucide-react';
+import { ArrowLeft, Sparkles, CheckCircle2, XCircle, Trophy, RotateCw, Bot, Clock } from 'lucide-react';
 import api from '../api';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';

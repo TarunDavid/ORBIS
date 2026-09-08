@@ -19,11 +19,34 @@ const FlashcardScreen = () => {
   const [error, setError] = useState('');
   const [masteredIndices, setMasteredIndices] = useState<Set<number>>(new Set());
 
-  const generateFlashcards = async () => {
+  const loadFlashcards = async (forceRegenerate = false) => {
     setLoading(true);
     setError('');
     try {
       const studentId = localStorage.getItem('student_id');
+
+      // If not explicitly regenerating, check for existing saved cards first
+      if (!forceRegenerate) {
+        try {
+          const existingRes = await api.get(`flashcard-sets/?chapter_id=${chapterId}`);
+          if (
+            existingRes.data &&
+            existingRes.data.length > 0 &&
+            existingRes.data[0].cards &&
+            existingRes.data[0].cards.length > 0
+          ) {
+            setFlashcards(existingRes.data[0].cards);
+            setCurrentIndex(0);
+            setIsFlipped(false);
+            setMasteredIndices(new Set());
+            setLoading(false);
+            return;
+          }
+        } catch (fetchErr) {
+          console.warn('Could not fetch existing flashcard sets, falling back to generate', fetchErr);
+        }
+      }
+
       const res = await api.post('ai/flashcards/', {
         chapter_id: chapterId,
         student_id: studentId,
@@ -42,7 +65,7 @@ const FlashcardScreen = () => {
   };
 
   useEffect(() => {
-    generateFlashcards();
+    loadFlashcards(false);
   }, [chapterId]);
 
   const goNext = useCallback(() => {
@@ -90,6 +113,7 @@ const FlashcardScreen = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
+      if (loading || flashcards.length === 0) return;
       if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
         setIsFlipped(prev => !prev);
@@ -106,12 +130,55 @@ const FlashcardScreen = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, goNext, goPrev, toggleMastered]);
+  }, [loading, flashcards.length, currentIndex, goNext, goPrev, toggleMastered]);
 
   const currentCard = flashcards[currentIndex];
   const isCurrentMastered = masteredIndices.has(currentIndex);
   const masteryCount = masteredIndices.size;
   const masteryPercentage = flashcards.length > 0 ? Math.round((masteryCount / flashcards.length) * 100) : 0;
+
+  const getFontSize = (text: string, isFront: boolean) => {
+    const len = text ? text.length : 0;
+    if (isFront) {
+      if (len > 160) return 'text-base sm:text-lg md:text-xl';
+      if (len > 80) return 'text-lg sm:text-xl md:text-2xl';
+      return 'text-xl sm:text-2xl md:text-3xl';
+    } else {
+      if (len > 300) return 'text-sm sm:text-base font-medium';
+      if (len > 150) return 'text-base sm:text-lg font-semibold';
+      if (len > 80) return 'text-lg sm:text-xl font-bold';
+      return 'text-xl sm:text-2xl md:text-3xl font-bold';
+    }
+  };
+
+  const renderCardContent = (text: string) => {
+    if (!text) return null;
+
+    // Check if text contains numbered steps like "1. ... 2. ..."
+    const numberedMatch = text.match(/\b\d+\.\s+/g);
+    if (numberedMatch && numberedMatch.length >= 2) {
+      const parts = text.split(/(?=\b\d+\.\s+)/).map((s) => s.trim()).filter(Boolean);
+      return (
+        <div className="space-y-2 text-left w-full max-w-lg mx-auto bg-black/[0.04] p-3 sm:p-4 rounded-xl border border-black/10">
+          {parts.map((part, idx) => {
+            const dotIdx = part.indexOf('.');
+            const num = part.slice(0, dotIdx + 1);
+            const body = part.slice(dotIdx + 1).trim();
+            return (
+              <div key={idx} className="flex items-start gap-2">
+                <span className="font-extrabold text-stone-900 bg-white/80 px-1.5 py-0.5 rounded text-xs shrink-0 border border-black/10 shadow-xs">
+                  {num}
+                </span>
+                <span className="leading-snug text-stone-800 text-sm sm:text-base">{body}</span>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return <p className="whitespace-pre-line leading-relaxed">{text}</p>;
+  };
 
   return (
     <div className="min-h-screen bg-canvas text-[#121316] font-jakarta pb-16">
@@ -139,7 +206,7 @@ const FlashcardScreen = () => {
             </button>
             
             <button
-              onClick={generateFlashcards}
+              onClick={() => loadFlashcards(true)}
               disabled={loading}
               className="clay-btn bg-gold text-[#121316] hover:bg-yellow-400 px-4 py-2 text-sm flex items-center gap-2"
             >
@@ -194,7 +261,7 @@ const FlashcardScreen = () => {
           <div className="clay-card bg-white p-8 max-w-lg mx-auto border-l-[8px] border-l-coral text-center space-y-4">
             <p className="font-syne font-bold text-lg text-coral">{error}</p>
             <button
-              onClick={generateFlashcards}
+              onClick={() => loadFlashcards(true)}
               className="clay-btn bg-coral text-white px-6 py-2.5 text-sm"
             >
               Try Again
@@ -232,10 +299,13 @@ const FlashcardScreen = () => {
             {/* Flip Card Container */}
             <div
               onClick={() => setIsFlipped(!isFlipped)}
-              className="cursor-pointer mx-auto max-w-lg perspective-1000 select-none"
+              className="cursor-pointer mx-auto max-w-2xl w-full perspective-1000 select-none px-2 focus:outline-none focus-visible:ring-3 focus-visible:ring-gold rounded-2xl"
+              role="button"
+              tabIndex={0}
+              aria-label="Flashcard - click or press Space to flip"
             >
               <div
-                className="relative w-full min-h-[350px] transition-transform duration-500"
+                className="relative w-full min-h-[380px] sm:min-h-[420px] md:min-h-[450px] transition-transform duration-500"
                 style={{
                   transformStyle: 'preserve-3d',
                   transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
@@ -243,11 +313,11 @@ const FlashcardScreen = () => {
               >
                 {/* Front Side */}
                 <div
-                  className="absolute inset-0 clay-card-lg bg-white p-8 md:p-10 flex flex-col items-center justify-between text-center"
+                  className="absolute inset-0 clay-card-lg bg-white p-6 sm:p-8 md:p-10 flex flex-col items-center justify-between text-center overflow-hidden"
                   style={{ backfaceVisibility: 'hidden' }}
                 >
-                  <div className="w-full flex items-center justify-between">
-                    <span className="clay-chip bg-cobalt text-white px-3 py-1 text-xs font-bold">
+                  <div className="w-full flex items-center justify-between shrink-0 mb-3">
+                    <span className="clay-chip bg-cobalt text-white px-3.5 py-1 text-xs font-bold shadow-xs">
                       Question {currentIndex + 1}
                     </span>
                     {isCurrentMastered && (
@@ -257,26 +327,30 @@ const FlashcardScreen = () => {
                     )}
                   </div>
 
-                  <p className="text-xl md:text-2xl font-syne font-bold text-[#121316] leading-relaxed my-auto px-2">
-                    {currentCard.front}
-                  </p>
+                  <div className="flex-1 w-full overflow-y-auto min-h-0 my-auto py-2 px-2 sm:px-4 flex flex-col items-center justify-center custom-scrollbar">
+                    <div className="my-auto w-full">
+                      <p className={`${getFontSize(currentCard.front, true)} font-syne font-bold text-[#121316] leading-relaxed max-w-xl mx-auto`}>
+                        {currentCard.front}
+                      </p>
+                    </div>
+                  </div>
 
-                  <div className="flex items-center gap-2 text-stone-500 text-xs font-grotesk font-bold">
+                  <div className="shrink-0 mt-3 flex items-center gap-2 text-stone-500 text-xs font-grotesk font-bold">
                     <RotateCcw size={14} />
-                    <span>Tap or press Space to reveal answer</span>
+                    <span>Tap card or press Space to reveal answer</span>
                   </div>
                 </div>
 
                 {/* Back Side */}
                 <div
-                  className="absolute inset-0 clay-card-lg bg-gold p-8 md:p-10 flex flex-col items-center justify-between text-center"
+                  className="absolute inset-0 clay-card-lg bg-gold p-6 sm:p-8 md:p-10 flex flex-col items-center justify-between text-center overflow-hidden"
                   style={{
                     backfaceVisibility: 'hidden',
                     transform: 'rotateY(180deg)',
                   }}
                 >
-                  <div className="w-full flex items-center justify-between">
-                    <span className="clay-chip bg-white text-[#121316] px-3 py-1 text-xs font-bold">
+                  <div className="w-full flex items-center justify-between shrink-0 mb-3">
+                    <span className="clay-chip bg-white text-[#121316] px-3.5 py-1 text-xs font-bold shadow-xs">
                       Answer
                     </span>
                     {isCurrentMastered && (
@@ -286,13 +360,17 @@ const FlashcardScreen = () => {
                     )}
                   </div>
 
-                  <p className="text-xl md:text-2xl font-jakarta font-bold text-[#121316] leading-relaxed my-auto px-2">
-                    {currentCard.back}
-                  </p>
+                  <div className="flex-1 w-full overflow-y-auto min-h-0 my-auto py-2 px-2 sm:px-4 flex flex-col items-center justify-center custom-scrollbar">
+                    <div className="my-auto w-full">
+                      <div className={`${getFontSize(currentCard.back, false)} font-jakarta text-[#121316] max-w-xl mx-auto`}>
+                        {renderCardContent(currentCard.back)}
+                      </div>
+                    </div>
+                  </div>
 
-                  <div className="flex items-center gap-2 text-[#121316]/70 text-xs font-grotesk font-bold">
+                  <div className="shrink-0 mt-3 flex items-center gap-2 text-[#121316]/70 text-xs font-grotesk font-bold">
                     <RotateCcw size={14} />
-                    <span>Tap or press Space to view question</span>
+                    <span>Tap card or press Space to view question</span>
                   </div>
                 </div>
               </div>
@@ -316,7 +394,10 @@ const FlashcardScreen = () => {
               </button>
 
               <button
-                onClick={() => setIsFlipped(!isFlipped)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsFlipped(!isFlipped);
+                }}
                 className="clay-btn bg-white text-[#121316] px-4 py-2.5 text-xs sm:text-sm font-bold flex items-center gap-1.5"
               >
                 <RotateCw size={14} />
@@ -327,9 +408,12 @@ const FlashcardScreen = () => {
             {/* Navigation Controls */}
             <div className="flex items-center justify-center gap-6 mt-6">
               <button
-                onClick={goPrev}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goPrev();
+                }}
                 disabled={currentIndex === 0}
-                className="clay-btn bg-white p-3.5 text-[#121316] disabled:opacity-30 disabled:cursor-not-allowed"
+                className="clay-btn bg-white p-3.5 text-[#121316] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition-colors"
                 aria-label="Previous card"
               >
                 <ChevronLeft size={24} />
@@ -340,9 +424,12 @@ const FlashcardScreen = () => {
               </div>
               
               <button
-                onClick={goNext}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goNext();
+                }}
                 disabled={currentIndex === flashcards.length - 1}
-                className="clay-btn bg-white p-3.5 text-[#121316] disabled:opacity-30 disabled:cursor-not-allowed"
+                className="clay-btn bg-white p-3.5 text-[#121316] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-stone-100 transition-colors"
                 aria-label="Next card"
               >
                 <ChevronRight size={24} />
@@ -372,7 +459,7 @@ const FlashcardScreen = () => {
           <div className="clay-card bg-white p-10 max-w-md mx-auto text-center space-y-4">
             <p className="font-syne font-bold text-lg text-stone-700">No flashcards generated yet.</p>
             <button
-              onClick={generateFlashcards}
+              onClick={() => loadFlashcards(true)}
               className="clay-btn bg-gold text-[#121316] px-6 py-2.5 text-sm"
             >
               Generate Flashcards

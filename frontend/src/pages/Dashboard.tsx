@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { BookOpen, RefreshCw, AlertCircle, Calculator, FlaskConical, Languages, Globe, Type, Pen } from 'lucide-react';
+import { BookOpen, RefreshCw, AlertCircle, Calculator, FlaskConical, Languages, Globe, Pen } from 'lucide-react';
 
 interface Subject {
   id: number;
@@ -20,13 +20,45 @@ const SUBJECT_COLORS = [
   { bg: 'bg-mint-dark', text: 'text-white', stripe: 'bg-mint-dark' },
 ];
 
+/**
+ * Hindi first alphabet logo icon: 'अ' (Devanagari letter A)
+ */
+const HindiAlphabetIcon = ({ size = 28, className = '' }: { size?: number | string; className?: string }) => {
+  const pixelSize = typeof size === 'number' ? size : parseInt(size as string, 10) || 28;
+  return (
+    <span
+      className={`font-black select-none inline-flex items-center justify-center leading-none text-center ${className}`}
+      style={{
+        width: `${pixelSize}px`,
+        height: `${pixelSize}px`,
+        fontSize: `${Math.round(pixelSize * 1.12)}px`,
+        fontFamily: "'Rozha One', 'Noto Sans Devanagari', 'Kohinoor Devanagari', 'Devanagari MT', system-ui, sans-serif",
+        fontWeight: 900,
+        transform: 'translateY(-1.5px)',
+      }}
+      aria-label="Hindi Alphabet अ"
+    >
+      अ
+    </span>
+  );
+};
+
 const SUBJECT_ICONS: Record<string, React.ComponentType<any>> = {
   mathematics: Calculator,
   science: FlaskConical,
   english: Languages,
   social_science: Globe,
-  hindi: Type,
+  hindi: HindiAlphabetIcon,
   kannada: Pen,
+};
+
+const getSubjectIcon = (subject: Subject) => {
+  const ident = (subject.identifier || '').toLowerCase();
+  const name = (subject.display_name || '').toLowerCase();
+  if (ident === 'hindi' || ident.includes('hindi') || name.includes('hindi') || name.includes('हिन्दी') || name.includes('हिंदी')) {
+    return HindiAlphabetIcon;
+  }
+  return SUBJECT_ICONS[ident] || BookOpen;
 };
 
 const Dashboard = () => {
@@ -150,7 +182,7 @@ const Dashboard = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {subjects.map((subject, index) => {
                   const color = SUBJECT_COLORS[index % SUBJECT_COLORS.length];
-                  const IconComponent = SUBJECT_ICONS[subject.identifier] || BookOpen;
+                  const IconComponent = getSubjectIcon(subject);
                   const chapterCount = subject.chapters?.length || 0;
                   return (
                     <button 

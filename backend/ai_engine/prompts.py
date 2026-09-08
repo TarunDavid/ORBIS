@@ -216,6 +216,21 @@ INCORRECT QUESTIONS:
 Respond ONLY with valid JSON in this exact format, no other text:
 {{"weak_concepts": [{{"concept_name": "Short Name", "explanation": "Brief explanation of the concept based on the chapter", "related_question_ids": [1, 2]}}]}}"""
 
+UNIFIED_QUIZ_ANALYZE = """You are ORBIS AI Tutor analyzing a student's quiz mistakes.
+Based on the chapter context and the student's missed questions, perform TWO tasks:
+1. For each missed question, provide a brief (1-2 sentence) clear explanation of why the correct answer is right and why the student's answer was incorrect. Use standard markdown math delimiters ($ and $$).
+2. Identify 1 to 2 core weak concepts or topics the student should review.
+
+CHAPTER CONTENT:
+{chapter_context}
+
+MISSED QUESTIONS:
+{questions_json}
+
+Respond ONLY with valid JSON in this exact structure, no other text:
+{{"explanations": [{{"question_id": 1, "explanation": "Why correct answer is right and student answer was wrong"}}], "weak_concepts": [{{"concept_name": "Concept Name", "explanation": "Brief study advice", "related_question_ids": [1]}}]}}"""
+
+
 
 
 def build_chat_prompt(system_prompt: str, user_message: str, chat_history: list = None) -> str:

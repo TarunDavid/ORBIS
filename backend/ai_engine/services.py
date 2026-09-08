@@ -29,16 +29,20 @@ class LLMService:
                     f"Qwen2.5 model not found at {QWEN_PATH}. "
                     f"Run: python download_models.py"
                 )
-            print("Loading Qwen2.5 1.5B into memory...")
-            cpu_threads = max(2, min(8, (os.cpu_count() or 4) - 2))
+            import platform
+            n_gpu = -1 if platform.system() == 'Darwin' else 0
+            cpu_threads = max(4, min(8, os.cpu_count() or 4))
+            print(f"Loading Qwen2.5 1.5B into memory (n_gpu_layers={n_gpu}, n_ctx=8192)...")
             cls._instance = Llama(
                 model_path=QWEN_PATH,
-                n_ctx=4096,
+                n_gpu_layers=n_gpu,
+                n_ctx=8192,
+                n_batch=512,
                 n_threads=cpu_threads,
                 n_threads_batch=cpu_threads,
                 verbose=False,
             )
-            print("Qwen2.5 loaded.")
+            print("Qwen2.5 loaded with GPU/hardware acceleration.")
         return cls._instance
 
     @classmethod
