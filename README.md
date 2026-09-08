@@ -8,7 +8,7 @@
 [![Smart India Hackathon 2026](https://img.shields.io/badge/SIH-2026-orange.svg?style=for-the-badge)](https://www.sih.gov.in/)
 [![Theme: Smart Education](https://img.shields.io/badge/Theme-Smart%20Education-blue.svg?style=for-the-badge)](#)
 [![Problem: SIH26205](https://img.shields.io/badge/Problem%20ID-SIH26205-purple.svg?style=for-the-badge)](#)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](#)
+[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg?style=for-the-badge)](#)
 [![Offline First](https://img.shields.io/badge/Zero%20Internet-100%25%20Offline-red.svg?style=for-the-badge)](#)
 
 [Features](#-core-features) • [Architecture](#-system-architecture) • [Getting Started](#-quick-start) • [Offline AI Stack](#-on-device-ai-engine) • [Curriculum](#-curriculum--subjects) • [Team](#-team-alphacenturi)
@@ -312,4 +312,4 @@ ORBIS incorporates full keyboard navigation for classroom inclusivity:
 
 ## 📄 License
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+This project is proprietary, confidential, and closed-source. All rights are reserved by **Team ALPHACENTURI** — see the [LICENSE](LICENSE) file for details.
