@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { BookOpen, RefreshCw, AlertCircle, Calculator, FlaskConical, Languages, Globe, Pen } from 'lucide-react';
+import { BookOpen, RefreshCw, AlertCircle, FlaskConical, Globe } from 'lucide-react';
 
 interface Subject {
   id: number;
@@ -19,6 +19,66 @@ const SUBJECT_COLORS = [
   { bg: 'bg-cobalt-dark', text: 'text-white', stripe: 'bg-cobalt-dark' },
   { bg: 'bg-mint-dark', text: 'text-white', stripe: 'bg-mint-dark' },
 ];
+
+/**
+ * Math symbols logo icon: Cluster of mathematical symbols (+, −, ×, ÷)
+ * representing the fundamental language / alphabet of mathematics.
+ */
+const MathSymbolsIcon = ({ size = 28, className = '' }: { size?: number | string; className?: string }) => {
+  const pixelSize = typeof size === 'number' ? size : parseInt(size as string, 10) || 28;
+  return (
+    <svg
+      width={pixelSize}
+      height={pixelSize}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label="Mathematical Symbols (+, −, ×, ÷)"
+    >
+      {/* Plus (top-left) */}
+      <line x1="6.5" y1="3" x2="6.5" y2="10" />
+      <line x1="3" y1="6.5" x2="10" y2="6.5" />
+
+      {/* Minus (top-right) */}
+      <line x1="14" y1="6.5" x2="21" y2="6.5" />
+
+      {/* Multiply (bottom-left) */}
+      <line x1="3.5" y1="14.5" x2="9.5" y2="20.5" />
+      <line x1="9.5" y1="14.5" x2="3.5" y2="20.5" />
+
+      {/* Divide (bottom-right) */}
+      <line x1="14" y1="17.5" x2="21" y2="17.5" />
+      <circle cx="17.5" cy="13.8" r="1.25" fill="currentColor" stroke="none" />
+      <circle cx="17.5" cy="21.2" r="1.25" fill="currentColor" stroke="none" />
+    </svg>
+  );
+};
+
+/**
+ * English first alphabet logo icon: 'Aa'
+ */
+const EnglishAlphabetIcon = ({ size = 28, className = '' }: { size?: number | string; className?: string }) => {
+  const pixelSize = typeof size === 'number' ? size : parseInt(size as string, 10) || 28;
+  return (
+    <span
+      className={`font-black select-none inline-flex items-baseline justify-center leading-none text-center font-syne ${className}`}
+      style={{
+        fontSize: `${Math.round(pixelSize * 0.95)}px`,
+        fontWeight: 900,
+        transform: 'translateY(1px)',
+        letterSpacing: '-0.04em',
+      }}
+      aria-label="English Alphabet Aa"
+    >
+      <span>A</span>
+      <span style={{ fontSize: '0.78em', marginLeft: '1px' }}>a</span>
+    </span>
+  );
+};
 
 /**
  * Hindi first alphabet logo icon: 'अ' (Devanagari letter A)
@@ -43,20 +103,53 @@ const HindiAlphabetIcon = ({ size = 28, className = '' }: { size?: number | stri
   );
 };
 
+/**
+ * Kannada first alphabet logo icon: 'ಅ' (Kannada letter A)
+ */
+const KannadaAlphabetIcon = ({ size = 28, className = '' }: { size?: number | string; className?: string }) => {
+  const pixelSize = typeof size === 'number' ? size : parseInt(size as string, 10) || 28;
+  return (
+    <span
+      className={`font-black select-none inline-flex items-center justify-center leading-none text-center ${className}`}
+      style={{
+        width: `${pixelSize}px`,
+        height: `${pixelSize}px`,
+        fontSize: `${Math.round(pixelSize * 1.15)}px`,
+        fontFamily: "'Noto Sans Kannada', 'Kannada Sangam MN', 'Kannada MN', system-ui, sans-serif",
+        fontWeight: 900,
+        transform: 'translateY(-1px)',
+      }}
+      aria-label="Kannada Alphabet ಅ"
+    >
+      ಅ
+    </span>
+  );
+};
+
 const SUBJECT_ICONS: Record<string, React.ComponentType<any>> = {
-  mathematics: Calculator,
+  mathematics: MathSymbolsIcon,
+  maths: MathSymbolsIcon,
   science: FlaskConical,
-  english: Languages,
+  english: EnglishAlphabetIcon,
   social_science: Globe,
   hindi: HindiAlphabetIcon,
-  kannada: Pen,
+  kannada: KannadaAlphabetIcon,
 };
 
 const getSubjectIcon = (subject: Subject) => {
   const ident = (subject.identifier || '').toLowerCase();
   const name = (subject.display_name || '').toLowerCase();
+  if (ident === 'math' || ident === 'maths' || ident.includes('math') || name.includes('math')) {
+    return MathSymbolsIcon;
+  }
+  if (ident === 'english' || ident.includes('english') || name.includes('english')) {
+    return EnglishAlphabetIcon;
+  }
   if (ident === 'hindi' || ident.includes('hindi') || name.includes('hindi') || name.includes('हिन्दी') || name.includes('हिंदी')) {
     return HindiAlphabetIcon;
+  }
+  if (ident === 'kannada' || ident.includes('kannada') || name.includes('kannada') || name.includes('ಕನ್ನಡ')) {
+    return KannadaAlphabetIcon;
   }
   return SUBJECT_ICONS[ident] || BookOpen;
 };

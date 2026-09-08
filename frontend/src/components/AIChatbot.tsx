@@ -165,11 +165,18 @@ const AIChatbot = ({ chapterId, chapterTitle, subjectIdentifier, subjectName }: 
           </div>
           <span className="font-syne font-extrabold text-lg">Orbee</span>
           {isKannada && (
-            <span className="clay-chip bg-white text-[#121316] px-2.5 py-0.5 text-[10px]">ಕನ್ನಡ AI</span>
+            <span className="clay-chip bg-white text-[#121316] px-2.5 py-0.5 text-[10px] flex items-center gap-1 font-bold">
+              <span className="font-black text-xs">ಅ</span> ಕನ್ನಡ AI
+            </span>
           )}
           {isHindi && (
             <span className="clay-chip bg-white text-[#121316] px-2.5 py-0.5 text-[10px] flex items-center gap-1 font-bold">
               <span className="font-black text-xs">अ</span> हिन्दी AI
+            </span>
+          )}
+          {!isKannada && !isHindi && (
+            <span className="clay-chip bg-white text-[#121316] px-2.5 py-0.5 text-[10px] flex items-center gap-1 font-bold">
+              <span className="font-black text-xs font-syne">Aa</span> English AI
             </span>
           )}
         </div>
