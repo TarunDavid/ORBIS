@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { BookOpen, RefreshCw, AlertCircle, FlaskConical, Globe } from 'lucide-react';
+import { BookOpen, BookA, RefreshCw, AlertCircle, FlaskConical, Globe } from 'lucide-react';
 
 interface Subject {
   id: number;
@@ -59,28 +59,6 @@ const MathSymbolsIcon = ({ size = 28, className = '' }: { size?: number | string
 };
 
 /**
- * English first alphabet logo icon: 'Aa'
- */
-const EnglishAlphabetIcon = ({ size = 28, className = '' }: { size?: number | string; className?: string }) => {
-  const pixelSize = typeof size === 'number' ? size : parseInt(size as string, 10) || 28;
-  return (
-    <span
-      className={`font-black select-none inline-flex items-baseline justify-center leading-none text-center font-syne ${className}`}
-      style={{
-        fontSize: `${Math.round(pixelSize * 0.95)}px`,
-        fontWeight: 900,
-        transform: 'translateY(1px)',
-        letterSpacing: '-0.04em',
-      }}
-      aria-label="English Alphabet Aa"
-    >
-      <span>A</span>
-      <span style={{ fontSize: '0.78em', marginLeft: '1px' }}>a</span>
-    </span>
-  );
-};
-
-/**
  * Hindi first alphabet logo icon: 'अ' (Devanagari letter A)
  */
 const HindiAlphabetIcon = ({ size = 28, className = '' }: { size?: number | string; className?: string }) => {
@@ -130,7 +108,7 @@ const SUBJECT_ICONS: Record<string, React.ComponentType<any>> = {
   mathematics: MathSymbolsIcon,
   maths: MathSymbolsIcon,
   science: FlaskConical,
-  english: EnglishAlphabetIcon,
+  english: BookA,
   social_science: Globe,
   hindi: HindiAlphabetIcon,
   kannada: KannadaAlphabetIcon,
@@ -143,7 +121,7 @@ const getSubjectIcon = (subject: Subject) => {
     return MathSymbolsIcon;
   }
   if (ident === 'english' || ident.includes('english') || name.includes('english')) {
-    return EnglishAlphabetIcon;
+    return BookA;
   }
   if (ident === 'hindi' || ident.includes('hindi') || name.includes('hindi') || name.includes('हिन्दी') || name.includes('हिंदी')) {
     return HindiAlphabetIcon;
