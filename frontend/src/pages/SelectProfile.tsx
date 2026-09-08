@@ -59,24 +59,24 @@ const SelectProfile = () => {
              <div className="clay-spinner"></div>
            </div>
         ) : (
-          <div className="flex flex-wrap justify-center gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 justify-items-center">
             {profiles.map((profile, index) => (
               <button 
                 key={profile.id}
                 onClick={() => handleSelect(profile)}
-                className="flex flex-col items-center p-5 bg-white clay-card hover:translate-y-[-2px] hover:shadow-clay-3 transition-all group w-36"
+                className="flex flex-col items-center p-5 bg-white clay-card hover:translate-y-[-2px] hover:shadow-clay-3 transition-all group w-full max-w-[10rem]"
               >
                 <div className={`w-16 h-16 ${AVATAR_COLORS[index % AVATAR_COLORS.length]} clay-circle flex items-center justify-center mb-3`}>
                   <User size={28} className="text-white" />
                 </div>
-                <h3 className="font-syne font-bold text-structural text-base truncate w-full">{profile.name}</h3>
+                <h3 className="font-syne font-bold text-structural text-base truncate w-full text-center" title={profile.name}>{profile.name}</h3>
                 <p className="label-text text-on-surface-variant text-[10px] mt-1">{profile.grade}</p>
               </button>
             ))}
 
             <Link 
               to="/register"
-              className="flex flex-col items-center justify-center p-5 bg-canvas border-3 border-dashed border-structural rounded-clay hover:bg-gold/20 hover:border-solid transition-all group w-36"
+              className="flex flex-col items-center justify-center p-5 bg-canvas border-3 border-dashed border-structural rounded-clay hover:bg-gold/20 hover:border-solid transition-all group w-full max-w-[10rem]"
               style={{ borderWidth: '3px' }}
             >
               <div className="w-16 h-16 text-on-surface-variant rounded-full flex items-center justify-center group-hover:text-cobalt transition-colors mb-3">

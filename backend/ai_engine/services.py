@@ -30,10 +30,13 @@ class LLMService:
                     f"Run: python download_models.py"
                 )
             print("Loading Qwen2.5 1.5B into memory...")
+            cpu_threads = max(2, min(8, (os.cpu_count() or 4) - 2))
             cls._instance = Llama(
                 model_path=QWEN_PATH,
-                n_ctx=16384,  # Increased to support full video transcripts
-                verbose=True,
+                n_ctx=4096,
+                n_threads=cpu_threads,
+                n_threads_batch=cpu_threads,
+                verbose=False,
             )
             print("Qwen2.5 loaded.")
         return cls._instance
@@ -117,7 +120,12 @@ class TTSService:
             )
 
         import sys
-        piper_bin = os.path.join(os.path.dirname(sys.executable), 'piper')
+        import shutil
+        piper_bin = (
+            shutil.which('piper')
+            or os.path.join(os.path.dirname(sys.executable), 'Scripts', 'piper.exe')
+            or os.path.join(os.path.dirname(sys.executable), 'piper')
+        )
         command = [
             piper_bin,
             "--model", PIPER_ONNX_PATH,

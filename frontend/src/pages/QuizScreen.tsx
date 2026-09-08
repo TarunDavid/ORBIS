@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, CheckCircle2, XCircle, Trophy, RotateCw, Bot } from 'lucide-react';
+import { ArrowLeft, Sparkles, CheckCircle2, XCircle, Trophy, RotateCw, Bot, Clock, HelpCircle, Award } from 'lucide-react';
 import api from '../api';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -58,6 +58,22 @@ const QuizScreen = () => {
   const [analysisPhase, setAnalysisPhase] = useState<AnalysisPhase>('idle');
   const [explanations, setExplanations] = useState<QuestionExplanation[]>([]);
   const [weakConcepts, setWeakConcepts] = useState<WeakConcept[]>([]);
+  const [secondsElapsed, setSecondsElapsed] = useState(0);
+
+  // Timer while answering
+  useEffect(() => {
+    let timer: any;
+    if (phase === 'answering') {
+      timer = setInterval(() => setSecondsElapsed(s => s + 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [phase]);
+
+  const formatTime = (secs: number) => {
+    const mins = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   const generateQuiz = async () => {
     setPhase('loading');
@@ -68,6 +84,7 @@ const QuizScreen = () => {
     setAnalysisPhase('idle');
     setExplanations([]);
     setWeakConcepts([]);
+    setSecondsElapsed(0);
 
     try {
       const studentId = localStorage.getItem('student_id');
@@ -91,22 +108,22 @@ const QuizScreen = () => {
   }, [chapterId]);
 
   const selectAnswer = (questionIndex: number, answer: string) => {
-    setSelectedAnswers({ ...selectedAnswers, [questionIndex]: answer });
+    setSelectedAnswers(prev => ({ ...prev, [questionIndex]: answer }));
   };
 
-  const goToNext = () => {
+  const goToNext = useCallback(() => {
     if (currentQ < questions.length - 1) {
-      setCurrentQ(currentQ + 1);
+      setCurrentQ(prev => prev + 1);
     }
-  };
+  }, [currentQ, questions.length]);
 
-  const goToPrev = () => {
+  const goToPrev = useCallback(() => {
     if (currentQ > 0) {
-      setCurrentQ(currentQ - 1);
+      setCurrentQ(prev => prev - 1);
     }
-  };
+  }, [currentQ]);
 
-  const submitQuiz = async () => {
+  const submitQuiz = useCallback(async () => {
     if (!attemptId) return;
     setPhase('loading');
 
@@ -138,7 +155,7 @@ const QuizScreen = () => {
       setError('Failed to submit quiz.');
       setPhase('error');
     }
-  };
+  }, [attemptId, questions, selectedAnswers]);
 
   const analyzeQuiz = async (aid: number) => {
     setAnalysisPhase('loading');
@@ -154,8 +171,47 @@ const QuizScreen = () => {
   };
 
   const answeredCount = Object.keys(selectedAnswers).length;
-  const allAnswered = answeredCount === questions.length;
+  const allAnswered = questions.length > 0 && answeredCount === questions.length;
   const scorePercent = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
+
+  // Keyboard navigation for answering
+  useEffect(() => {
+    if (phase !== 'answering' || questions.length === 0) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
+
+      const num = parseInt(e.key, 10);
+      if (num >= 1 && num <= 4 && questions[currentQ]?.options[num - 1]) {
+        e.preventDefault();
+        selectAnswer(currentQ, questions[currentQ].options[num - 1]);
+      } else if (['a', 'b', 'c', 'd'].includes(e.key.toLowerCase())) {
+        const charIdx = e.key.toLowerCase().charCodeAt(0) - 97;
+        if (questions[currentQ]?.options[charIdx]) {
+          e.preventDefault();
+          selectAnswer(currentQ, questions[currentQ].options[charIdx]);
+        }
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (currentQ < questions.length - 1) {
+          goToNext();
+        }
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        goToPrev();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (currentQ < questions.length - 1) {
+          goToNext();
+        } else if (allAnswered) {
+          submitQuiz();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [phase, currentQ, questions, allAnswered, goToNext, goToPrev, submitQuiz]);
 
   return (
     <div className="min-h-screen bg-canvas text-[#121316] font-jakarta pb-16">
@@ -171,15 +227,24 @@ const QuizScreen = () => {
             <span>Back to Chapter</span>
           </button>
           
-          {phase === 'results' && (
-            <button
-              onClick={generateQuiz}
-              className="clay-btn bg-mint text-[#121316] hover:bg-emerald-400 px-4 py-2 text-sm flex items-center gap-2 font-bold"
-            >
-              <RotateCw size={16} />
-              <span>New Quiz</span>
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {phase === 'answering' && (
+              <div className="clay-chip bg-white text-[#121316] px-3 py-1.5 text-xs font-grotesk font-bold flex items-center gap-1.5 shadow-xs">
+                <Clock size={14} className="text-cobalt" />
+                <span>{formatTime(secondsElapsed)}</span>
+              </div>
+            )}
+
+            {phase === 'results' && (
+              <button
+                onClick={generateQuiz}
+                className="clay-btn bg-mint text-[#121316] hover:bg-emerald-400 px-4 py-2 text-sm flex items-center gap-2 font-bold"
+              >
+                <RotateCw size={16} />
+                <span>New Quiz</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Title Header */}
@@ -202,7 +267,7 @@ const QuizScreen = () => {
           <div className="clay-card bg-white p-12 flex flex-col items-center justify-center my-10 max-w-lg mx-auto text-center space-y-4">
             <div className="clay-spinner"></div>
             <p className="font-syne font-bold text-lg text-[#121316]">Generating Chapter Quiz...</p>
-            <p className="font-grotesk text-xs uppercase tracking-wider text-stone-500">Creating custom questions from curriculum</p>
+            <p className="font-grotesk text-xs uppercase tracking-wider text-stone-500">Creating custom questions with on-device AI</p>
           </div>
         )}
 
@@ -226,7 +291,9 @@ const QuizScreen = () => {
             <div className="mb-6 space-y-2">
               <div className="flex justify-between text-xs font-grotesk font-bold text-[#121316] uppercase tracking-wider">
                 <span>Question {currentQ + 1} of {questions.length}</span>
-                <span>{answeredCount} / {questions.length} Answered</span>
+                <span className={allAnswered ? 'text-emerald-700' : 'text-stone-600'}>
+                  {answeredCount} / {questions.length} Answered
+                </span>
               </div>
               <div className="h-4 bg-white border-[3px] border-[#121316] rounded-full overflow-hidden p-0.5 shadow-sm">
                 <div
@@ -238,9 +305,17 @@ const QuizScreen = () => {
 
             {/* Question Card */}
             <div className="clay-card-lg bg-white p-6 md:p-8 mb-6 relative">
-              <div className="inline-block clay-chip bg-mint text-[#121316] px-3 py-1 text-xs mb-3 font-bold">
-                QUESTION {currentQ + 1}
+              <div className="flex items-center justify-between mb-3">
+                <div className="inline-block clay-chip bg-mint text-[#121316] px-3 py-1 text-xs font-bold">
+                  QUESTION {currentQ + 1}
+                </div>
+                {selectedAnswers[currentQ] && (
+                  <span className="clay-chip bg-canvas text-emerald-800 text-[11px] font-bold flex items-center gap-1">
+                    <CheckCircle2 size={13} className="text-emerald-600" /> Answered
+                  </span>
+                )}
               </div>
+
               <h2 className="text-xl md:text-2xl font-syne font-bold text-[#121316] mb-6 leading-snug">
                 {questions[currentQ].question}
               </h2>
@@ -248,18 +323,26 @@ const QuizScreen = () => {
               <div className="space-y-3">
                 {questions[currentQ].options.map((option, i) => {
                   const isSelected = selectedAnswers[currentQ] === option;
+                  const cleanText = option.replace(/^[A-Da-d][\)\.]\s*/, '');
+                  const letter = String.fromCharCode(65 + i);
+
                   return (
                     <button
                       key={i}
                       onClick={() => selectAnswer(currentQ, option)}
-                      className={`w-full text-left p-4 rounded-xl border-[3px] border-[#121316] font-jakarta transition-all ${
+                      className={`w-full text-left p-4 rounded-xl border-[3px] border-[#121316] font-jakarta transition-all flex items-start gap-3.5 ${
                         isSelected
                           ? 'bg-cobalt text-white font-bold shadow-none translate-x-1 translate-y-1'
                           : 'bg-canvas text-[#121316] hover:bg-white clay-card-sm'
                       }`}
                     >
-                      <span className="text-sm md:text-base leading-relaxed">
-                        {option}
+                      <span className={`w-8 h-8 rounded-full border-2 border-current flex items-center justify-center font-grotesk font-extrabold text-sm flex-shrink-0 mt-0.5 transition-colors ${
+                        isSelected ? 'bg-white text-cobalt' : 'bg-white text-[#121316]'
+                      }`}>
+                        {letter}
+                      </span>
+                      <span className="text-sm md:text-base leading-relaxed pt-0.5 flex-1">
+                        {cleanText}
                       </span>
                     </button>
                   );
@@ -282,7 +365,7 @@ const QuizScreen = () => {
                   onClick={goToNext}
                   className="clay-btn bg-cobalt text-white px-6 py-2.5 text-sm font-bold"
                 >
-                  Next
+                  Next →
                 </button>
               ) : (
                 <button
@@ -290,7 +373,7 @@ const QuizScreen = () => {
                   disabled={!allAnswered}
                   className="clay-btn bg-mint text-[#121316] px-6 py-2.5 text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Submit Quiz
+                  Submit Quiz ✓
                 </button>
               )}
             </div>
@@ -301,17 +384,34 @@ const QuizScreen = () => {
                 <button
                   key={i}
                   onClick={() => setCurrentQ(i)}
+                  title={`Jump to Question ${i + 1}`}
                   className={`w-9 h-9 border-[2px] border-[#121316] rounded-full font-grotesk font-bold text-xs flex items-center justify-center transition-all ${
                     i === currentQ
                       ? 'bg-cobalt text-white scale-110 shadow-sm'
                       : selectedAnswers[i]
                       ? 'bg-mint text-[#121316]'
-                      : 'bg-white text-stone-400'
+                      : 'bg-white text-stone-400 hover:text-[#121316]'
                   }`}
                 >
                   {i + 1}
                 </button>
               ))}
+            </div>
+
+            {/* Keyboard Shortcuts Helper */}
+            <div className="mt-8 text-center text-xs text-stone-500 font-grotesk font-medium flex items-center justify-center gap-3 flex-wrap">
+              <span className="inline-flex items-center gap-1">
+                <kbd className="px-1.5 py-0.5 bg-white border border-stone-300 rounded text-[10px] font-mono shadow-xs">1-4</kbd> or <kbd className="px-1.5 py-0.5 bg-white border border-stone-300 rounded text-[10px] font-mono shadow-xs">A-D</kbd> Select
+              </span>
+              <span>•</span>
+              <span className="inline-flex items-center gap-1">
+                <kbd className="px-1.5 py-0.5 bg-white border border-stone-300 rounded text-[10px] font-mono shadow-xs">←</kbd>
+                <kbd className="px-1.5 py-0.5 bg-white border border-stone-300 rounded text-[10px] font-mono shadow-xs">→</kbd> Navigate
+              </span>
+              <span>•</span>
+              <span className="inline-flex items-center gap-1">
+                <kbd className="px-1.5 py-0.5 bg-white border border-stone-300 rounded text-[10px] font-mono shadow-xs">Enter</kbd> Next / Submit
+              </span>
             </div>
           </>
         )}
@@ -333,13 +433,19 @@ const QuizScreen = () => {
               <h2 className="text-6xl md:text-7xl font-syne font-extrabold tracking-tight mb-2">
                 {score}/{totalQuestions}
               </h2>
-              <p className="font-syne font-bold text-xl md:text-2xl mb-4">
+              <p className="font-syne font-bold text-xl md:text-2xl mb-2">
                 {scorePercent >= 80
                   ? 'Outstanding Mastery! 🎉'
                   : scorePercent >= 50
                   ? 'Good Effort! Keep practicing 💪'
                   : 'Review the chapter and try again 📖'}
               </p>
+              
+              <div className="inline-flex items-center gap-3 text-xs font-grotesk font-bold uppercase tracking-wider mb-4 opacity-80">
+                <span>Accuracy: {scorePercent}%</span>
+                <span>•</span>
+                <span>Time Taken: {formatTime(secondsElapsed)}</span>
+              </div>
               
               <div className="h-4 bg-black/20 border-2 border-[#121316] rounded-full overflow-hidden max-w-xs mx-auto p-0.5">
                 <div
@@ -374,10 +480,13 @@ const QuizScreen = () => {
                           const optionLetter = option.charAt(0);
                           const isCorrect = optionLetter === result.correct_answer;
                           const isStudentAnswer = optionLetter === result.student_answer;
+                          const cleanText = option.replace(/^[A-Da-d][\)\.]\s*/, '');
+                          const letter = String.fromCharCode(65 + j);
+
                           return (
                             <div
                               key={j}
-                              className={`px-4 py-2.5 rounded-xl border-2 text-sm font-medium ${
+                              className={`px-4 py-2.5 rounded-xl border-2 text-sm font-medium flex items-center justify-between ${
                                 isCorrect
                                   ? 'bg-mint/30 border-[#121316] text-[#121316] font-bold'
                                   : isStudentAnswer && !isCorrect
@@ -385,9 +494,14 @@ const QuizScreen = () => {
                                   : 'bg-canvas border-stone-200 text-stone-600'
                               }`}
                             >
-                              <span>{option}</span>
-                              {isCorrect && ' ✓ (Correct Answer)'}
-                              {isStudentAnswer && !isCorrect && ' ✗ (Your Selection)'}
+                              <div className="flex items-center gap-2.5">
+                                <span className="font-grotesk font-extrabold text-xs">{letter}.</span>
+                                <span>{cleanText}</span>
+                              </div>
+                              <span className="text-xs font-bold">
+                                {isCorrect && '✓ Correct'}
+                                {isStudentAnswer && !isCorrect && '✗ Your Pick'}
+                              </span>
                             </div>
                           );
                         })}

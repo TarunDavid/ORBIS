@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { BookOpen, RefreshCw, AlertCircle } from 'lucide-react';
+import { BookOpen, RefreshCw, AlertCircle, Calculator, FlaskConical, Languages, Globe, Type, Pen } from 'lucide-react';
 
 interface Subject {
   id: number;
   identifier: string;
   display_name: string;
+  chapters?: any[];
 }
 
 const SUBJECT_COLORS = [
@@ -18,6 +19,15 @@ const SUBJECT_COLORS = [
   { bg: 'bg-cobalt-dark', text: 'text-white', stripe: 'bg-cobalt-dark' },
   { bg: 'bg-mint-dark', text: 'text-white', stripe: 'bg-mint-dark' },
 ];
+
+const SUBJECT_ICONS: Record<string, React.ComponentType<any>> = {
+  mathematics: Calculator,
+  science: FlaskConical,
+  english: Languages,
+  social_science: Globe,
+  hindi: Type,
+  kannada: Pen,
+};
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -140,6 +150,8 @@ const Dashboard = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {subjects.map((subject, index) => {
                   const color = SUBJECT_COLORS[index % SUBJECT_COLORS.length];
+                  const IconComponent = SUBJECT_ICONS[subject.identifier] || BookOpen;
+                  const chapterCount = subject.chapters?.length || 0;
                   return (
                     <button 
                       key={subject.id}
@@ -149,9 +161,14 @@ const Dashboard = () => {
                       {/* Color accent stripe */}
                       <div className={`absolute left-0 top-0 bottom-0 w-[6px] ${color.stripe} rounded-l-clay`}></div>
                       <div className={`w-16 h-16 ${color.bg} clay-circle flex items-center justify-center`}>
-                        <BookOpen size={28} className={color.text} />
+                        <IconComponent size={28} className={color.text} />
                       </div>
                       <h3 className="font-syne text-lg font-bold text-structural">{subject.display_name}</h3>
+                      {chapterCount > 0 && (
+                        <span className="clay-chip bg-canvas text-on-surface-variant px-2.5 py-0.5 text-[10px]">
+                          {chapterCount} {chapterCount === 1 ? 'CHAPTER' : 'CHAPTERS'}
+                        </span>
+                      )}
                     </button>
                   );
                 })}

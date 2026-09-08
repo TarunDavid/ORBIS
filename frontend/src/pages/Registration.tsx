@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../api';
+import { ArrowLeft } from 'lucide-react';
 
 const Registration = () => {
   const navigate = useNavigate();
@@ -46,6 +47,10 @@ const Registration = () => {
       </div>
 
       <div className="bg-white p-8 md:p-10 clay-card-lg w-full max-w-md">
+        <Link to="/" className="inline-flex items-center gap-1.5 text-on-surface-variant hover:text-structural transition-colors text-sm font-grotesk font-bold mb-6">
+          <ArrowLeft size={16} />
+          <span>Back</span>
+        </Link>
         <h1 className="font-syne text-4xl font-[900] text-center text-structural mb-1">ORBIS</h1>
         <p className="text-center text-on-surface-variant font-jakarta mb-8">Let's get started on your learning journey!</p>
         
@@ -74,6 +79,11 @@ const Registration = () => {
               <option value="Grade 3">Grade 3</option>
               <option value="Grade 4">Grade 4</option>
               <option value="Grade 5">Grade 5</option>
+              <option value="Grade 6">Grade 6</option>
+              <option value="Grade 7">Grade 7</option>
+              <option value="Grade 8">Grade 8</option>
+              <option value="Grade 9">Grade 9</option>
+              <option value="Grade 10">Grade 10</option>
             </select>
           </div>
           <div>

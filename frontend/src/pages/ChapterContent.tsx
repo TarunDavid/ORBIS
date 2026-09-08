@@ -256,13 +256,23 @@ const ChapterContent = () => {
               )}
 
               <div className="aspect-video bg-[#121316] relative border-b-[3px] border-[#121316]">
-                <video 
-                  ref={mainVideoRef}
-                  src={videoResource ? encodeURI(videoResource.file_path) : ''}
-                  controls 
-                  className="w-full h-full object-contain"
-                  onPlay={() => setIsDistracted(false)}
-                />
+                {videoResource ? (
+                  <video 
+                    ref={mainVideoRef}
+                    src={encodeURI(videoResource.file_path)}
+                    controls 
+                    className="w-full h-full object-contain"
+                    onPlay={() => setIsDistracted(false)}
+                  />
+                ) : (
+                  <div className="w-full h-full video-placeholder">
+                    <div className="video-placeholder-icon">
+                      <PlayCircle size={36} className="text-stone-500" />
+                    </div>
+                    <p className="font-grotesk font-bold text-sm uppercase tracking-wider text-stone-500">No video available yet</p>
+                    <p className="font-jakarta text-xs text-stone-600">Sync content from your teacher's device to get started</p>
+                  </div>
+                )}
               </div>
               
               <div className="p-6 md:p-8 space-y-6">

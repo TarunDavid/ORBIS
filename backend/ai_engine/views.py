@@ -313,7 +313,7 @@ class ChatbotView(APIView):
         try:
             output = LLMService.chat(
                 messages=messages,
-                max_tokens=400,
+                max_tokens=220,
                 temperature=0.7,
                 repeat_penalty=1.15,
             )
