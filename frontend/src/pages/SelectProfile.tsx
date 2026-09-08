@@ -41,10 +41,6 @@ const SelectProfile = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-canvas p-4 relative overflow-hidden">
       {/* Decorative background elements */}
-      <div className="absolute top-8 right-8 clay-chip bg-mint text-structural px-3 py-1.5 sticker-tilt-right flex items-center gap-2">
-        <span className="neon-dot"></span>
-        100% OFFLINE
-      </div>
       <div className="absolute bottom-12 left-8 clay-chip bg-gold text-structural px-3 py-1.5 sticker-tilt-left">
         🧠 ON-DEVICE AI
       </div>

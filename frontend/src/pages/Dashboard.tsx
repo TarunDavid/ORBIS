@@ -192,11 +192,6 @@ const Dashboard = () => {
             <p className="text-on-surface-variant mt-2 text-lg font-jakarta">Ready to learn something new in {studentGrade}?</p>
           </div>
           <div className="flex items-center gap-3">
-            {/* Offline Status Pill */}
-            <div className="clay-chip bg-mint text-structural px-3 py-1.5 flex items-center gap-2 hidden md:flex">
-              <span className="neon-dot"></span>
-              100% OFFLINE
-            </div>
             <button
               onClick={() => navigate('/sync')}
               className="clay-btn bg-cobalt text-white px-5 py-2.5 text-sm flex items-center gap-2"
