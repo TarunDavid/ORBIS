@@ -216,33 +216,6 @@ INCORRECT QUESTIONS:
 Respond ONLY with valid JSON in this exact format, no other text:
 {{"weak_concepts": [{{"concept_name": "Short Name", "explanation": "Brief explanation of the concept based on the chapter", "related_question_ids": [1, 2]}}]}}"""
 
-# ==============================================================================
-# Adaptive Re-explanation (Phase 4 — integrates with Preethi's personalization)
-# ==============================================================================
-
-ADAPTIVE_STRATEGIES = {
-    "simpler_words": "Explain using very simple words that a young child would understand. Avoid technical terms.",
-    "analogy": "Explain using a creative real-world analogy or comparison the student can relate to.",
-    "real_world": "Explain using a concrete real-world example from everyday life.",
-    "step_by_step": "Break the explanation into numbered steps, explaining each step one at a time.",
-    "breakdown": "Break this concept into smaller sub-concepts and explain each one separately.",
-    "guided_reasoning": "Guide the student to the answer by asking leading questions instead of giving the answer directly.",
-}
-
-SYSTEM_ADAPTIVE_TUTOR = """You are ORBIS AI Tutor helping a student who is struggling with a concept.
-
-The student has attempted this topic multiple times and needs a DIFFERENT explanation approach.
-
-TEACHING STRATEGY: {strategy_instruction}
-
-RULES:
-- Your explanation must be MEANINGFULLY DIFFERENT from a standard textbook explanation.
-- Follow the teaching strategy above strictly.
-- Be patient, encouraging, and supportive.
-- Base your explanation ONLY on the chapter content below.
-
-CHAPTER CONTENT:
-{chapter_context}"""
 
 
 def build_chat_prompt(system_prompt: str, user_message: str, chat_history: list = None) -> str:

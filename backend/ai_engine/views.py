@@ -18,16 +18,12 @@ from django.conf import settings
 from .services import LLMService, STTService, TTSService
 from .context import get_chapter_context, get_chapter_language, translate_query_to_language
 from .prompts import (
-    SYSTEM_TUTOR,
-    SYSTEM_VOICE_TUTOR,
-    SUMMARIZE_VIDEO,
     GENERATE_FLASHCARDS,
     GENERATE_QUIZ,
     EXPLAIN_INCORRECT_QUESTION,
     IDENTIFY_WEAK_CONCEPTS,
     get_system_tutor_prompt,
     get_voice_tutor_prompt,
-    get_summarize_prompt,
     build_chat_prompt,
     build_completion_prompt,
     build_messages,
@@ -445,10 +441,9 @@ class VoiceAssistantView(APIView):
             ai_text = output['choices'][0]['text'].strip()
 
             # 4. TTS (Piper — Tarun's module)
-            output_audio_path = os.path.join(
-                settings.BASE_DIR, 'api', 'static', 'response.wav'
-            )
-            os.makedirs(os.path.dirname(output_audio_path), exist_ok=True)
+            output_dir = os.path.join(settings.MEDIA_ROOT, 'tts')
+            os.makedirs(output_dir, exist_ok=True)
+            output_audio_path = os.path.join(output_dir, 'response.wav')
 
             success = TTSService.generate_audio(ai_text, output_audio_path)
 
@@ -461,7 +456,7 @@ class VoiceAssistantView(APIView):
             return Response({
                 'transcribed_text': user_text,
                 'text_response': ai_text,
-                'audio_url': '/static/response.wav',
+                'audio_url': '/media/tts/response.wav',
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
