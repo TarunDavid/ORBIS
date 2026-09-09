@@ -4,67 +4,140 @@
     <meta charset="utf-8">
     <title>Report Card - {{ student.name }}</title>
     <style>
+        @font-face {
+            font-family: 'Syne';
+            src: url("file://{{ base_dir }}/api/static/fonts/Syne.ttf");
+        }
+        @font-face {
+            font-family: 'PlusJakartaSans';
+            src: url("file://{{ base_dir }}/api/static/fonts/PlusJakartaSans.ttf");
+        }
+        @font-face {
+            font-family: 'NotoSansDevanagari';
+            src: url("file://{{ base_dir }}/api/static/fonts/NotoSansDevanagari-Regular.ttf");
+        }
+        @font-face {
+            font-family: 'NotoSansKannada';
+            src: url("file://{{ base_dir }}/api/static/fonts/NotoSansKannada-Regular.ttf");
+        }
+
         @page {
             size: A4;
             margin: 2cm;
+            background-color: #fdfcf7; /* Canvas color */
             @frame footer_frame {           
                 -pdf-frame-content: footer_content;
                 left: 2cm; width: 17cm; top: 27cm; height: 1cm;
             }
         }
-        body {
-            font-family: Helvetica, Arial, sans-serif;
-            color: #121316;
-            font-size: 12px;
-        }
-        h1, h2, h3 {
-            font-family: Helvetica, Arial, sans-serif;
-            color: #2547F4;
-            margin-bottom: 10px;
-        }
-        h1 { font-size: 24px; border-bottom: 2px solid #2547F4; padding-bottom: 5px; }
-        h2 { font-size: 18px; margin-top: 20px; }
         
-        .header { margin-bottom: 30px; }
+        body {
+            font-family: 'PlusJakartaSans', 'NotoSansDevanagari', 'NotoSansKannada', Helvetica, sans-serif;
+            color: #121316;
+            font-size: 13px;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Syne', 'PlusJakartaSans', 'NotoSansDevanagari', 'NotoSansKannada', sans-serif;
+            font-weight: bold;
+            color: #121316;
+        }
+
+        h1 { 
+            font-size: 28px; 
+            letter-spacing: -0.5px;
+            margin-bottom: 5px;
+        }
+
+        h2 { 
+            font-size: 18px; 
+            margin-top: 30px; 
+            margin-bottom: 15px;
+            color: #2547F4; /* Cobalt */
+        }
+        
+        .header { 
+            margin-bottom: 30px; 
+            border: 2px solid #121316;
+            border-radius: 8px;
+            padding: 15px;
+            background-color: #ffffff;
+        }
+        
         .header table { width: 100%; border: none; }
         .header td { padding: 5px; }
-        .label { font-weight: bold; color: #666; }
+        .label { font-weight: bold; color: #666; font-size: 11px; text-transform: uppercase; }
+        .value { font-weight: bold; font-size: 14px; }
         
-        .summary-box {
-            background-color: #f8f9fa;
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin-bottom: 20px;
-            text-align: center;
+        .clay-card {
+            background-color: #ffffff;
+            border: 2px solid #121316;
+            border-radius: 8px;
+            padding: 0;
+            margin-bottom: 25px;
         }
         
         table.data-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
         }
+
         table.data-table th, table.data-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
+            padding: 12px 15px;
             text-align: left;
+            border-bottom: 1px solid #e0e0e0;
         }
+        
         table.data-table th {
-            background-color: #2547F4;
-            color: white;
+            background-color: #f8f9fa;
+            font-family: 'Syne', 'PlusJakartaSans', sans-serif;
+            font-weight: bold;
+            font-size: 12px;
+            color: #121316;
+            text-transform: uppercase;
+            border-bottom: 2px solid #121316;
+        }
+
+        table.data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .subject-name {
+            font-weight: bold;
         }
         
         .progress-bar-container {
             width: 100px;
             background-color: #e9ecef;
-            height: 12px;
-            border-radius: 6px;
+            height: 14px;
+            border-radius: 7px;
+            border: 1px solid #121316;
             display: inline-block;
             vertical-align: middle;
+            margin-left: 10px;
         }
+        
         .progress-bar {
-            background-color: #0BD88F;
-            height: 12px;
+            background-color: #0BD88F; /* Mint */
+            height: 14px;
             border-radius: 6px;
+        }
+
+        .chip {
+            background-color: #fdfcf7;
+            border: 1px solid #121316;
+            border-radius: 4px;
+            padding: 3px 6px;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        #footer_content {
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+            border-top: 1px solid #ccc;
+            padding-top: 5px;
         }
     </style>
 </head>
@@ -74,77 +147,95 @@
         <h1>ORBIS Report Card</h1>
         <table>
             <tr>
-                <td class="label">Student Name:</td><td>{{ student.name }}</td>
-                <td class="label">Date Generated:</td><td>{{ generated_date }}</td>
+                <td class="label">Student Name</td>
+                <td class="label">Grade</td>
+                <td class="label">Date Generated</td>
             </tr>
             <tr>
-                <td class="label">Grade:</td><td>{{ student.grade }}</td>
-                <td class="label">School:</td><td>{{ student.school_name }}</td>
+                <td class="value">{{ student.name }}</td>
+                <td class="value">{{ student.grade }}</td>
+                <td class="value">{{ generated_date }}</td>
+            </tr>
+            <tr><td colspan="3" style="height: 10px;"></td></tr>
+            <tr>
+                <td class="label">School</td>
+                <td class="label">Mentor</td>
+                <td class="label">Active Days</td>
             </tr>
             <tr>
-                <td class="label">Mentor:</td><td>{{ student.mentor_name }}</td>
-                <td class="label">Total Active Days:</td><td>{{ active_days }} days</td>
+                <td class="value">{{ student.school_name }}</td>
+                <td class="value">{{ student.mentor_name }}</td>
+                <td class="value">{{ active_days }} days</td>
             </tr>
         </table>
     </div>
 
     <h2>Subject Progress Summary</h2>
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Subject</th>
-                <th>Completed Chapters</th>
-                <th>Total Chapters</th>
-                <th>Completion Progress</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in progress %}
-            <tr>
-                <td>{{ item.name }}</td>
-                <td>{{ item.completed }}</td>
-                <td>{{ item.total }}</td>
-                <td>
-                    {{ item.pct }}%
-                    <!-- Simple progress visualization for PDF -->
-                    <div class="progress-bar-container">
-                        <div class="progress-bar" style="width: {{ item.pct }}%;"></div>
-                    </div>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="4">No subjects found for this grade.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="clay-card">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Subject</th>
+                    <th>Completed</th>
+                    <th>Total</th>
+                    <th>Progress</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in progress %}
+                <tr>
+                    <td class="subject-name">{{ item.name }}</td>
+                    <td>{{ item.completed }}</td>
+                    <td>{{ item.total }}</td>
+                    <td>
+                        {{ item.pct }}%
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" style="width: {{ item.pct }}%;"></div>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4">No subjects found for this grade.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
     <h2>Recent Quiz Results</h2>
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Subject</th>
-                <th>Chapter</th>
-                <th>Score</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for quiz in quizzes %}
-            <tr>
-                <td>{{ quiz.created_at|date:"M d, Y" }}</td>
-                <td>{{ quiz.chapter.subject.display_name }}</td>
-                <td>{{ quiz.chapter.title }}</td>
-                <td>{{ quiz.score }} / {{ quiz.total_questions }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="4">No quizzes attempted yet.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="clay-card">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Subject</th>
+                    <th>Chapter</th>
+                    <th style="text-align: right;">Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for quiz in quizzes %}
+                <tr>
+                    <td>{{ quiz.created_at|date:"M d, Y" }}</td>
+                    <td class="subject-name">{{ quiz.chapter.subject.display_name }}</td>
+                    <td>{{ quiz.chapter.title }}</td>
+                    <td style="text-align: right;">
+                        {% if quiz.score is None %}
+                            <span class="chip" style="color: #666; background-color: #eee;">INCOMPLETE</span>
+                        {% else %}
+                            <span class="chip">{{ quiz.score }} / {{ quiz.total_questions }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4">No quizzes attempted yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
     <div id="footer_content">
         Page <pdf:pagenumber> of <pdf:pagecount> | Generated by ORBIS Offline Learning Platform

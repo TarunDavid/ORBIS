@@ -130,12 +130,14 @@ class StudentViewSet(viewsets.ModelViewSet):
             date=TruncDate('timestamp')
         ).values('date').distinct().count()
         
+        from django.conf import settings
         context = {
             'student': student,
             'progress': progress_data,
             'quizzes': quizzes,
             'active_days': active_days,
             'generated_date': datetime.now().strftime('%B %d, %Y'),
+            'base_dir': settings.BASE_DIR,
         }
         
         # Render template
