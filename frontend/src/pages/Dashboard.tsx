@@ -191,18 +191,6 @@ const Dashboard = () => {
             <h1 className="font-syne text-4xl font-[800] text-structural tracking-tight">Hello, {studentName} 👋</h1>
             <p className="text-on-surface-variant mt-2 text-lg font-jakarta">Ready to learn something new in {studentGrade}?</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/sync')}
-              className="clay-btn bg-cobalt text-white px-5 py-2.5 text-sm flex items-center gap-2"
-            >
-              <RefreshCw size={16} />
-              <span className="hidden sm:inline">Sync Content</span>
-            </button>
-            <button onClick={handleLogout} className="label-text text-sm text-on-surface-variant hover:text-structural transition underline underline-offset-4">
-              Switch User
-            </button>
-          </div>
         </header>
 
         {errorMsg && (

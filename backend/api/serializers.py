@@ -4,7 +4,7 @@ from .models import (
     ChatSession, ChatMessage,
     FlashcardSet, Flashcard,
     QuizAttempt, QuizQuestion,
-    LearningProgress,
+    LearningProgress, ActivityEvent
 )
 
 
@@ -86,13 +86,21 @@ class QuizQuestionSerializer(serializers.ModelSerializer):
 
 class QuizAttemptSerializer(serializers.ModelSerializer):
     questions = QuizQuestionSerializer(many=True, read_only=True)
+    chapter_title = serializers.CharField(source='chapter.title', read_only=True)
+    subject_name = serializers.CharField(source='chapter.subject.display_name', read_only=True)
 
     class Meta:
         model = QuizAttempt
         fields = [
-            'id', 'student', 'chapter', 'score',
+            'id', 'student', 'chapter', 'chapter_title', 'subject_name', 'score',
             'total_questions', 'completed_at', 'created_at', 'questions',
         ]
+
+
+class ActivityEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActivityEvent
+        fields = '__all__'
 
 
 class LearningProgressSerializer(serializers.ModelSerializer):
