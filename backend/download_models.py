@@ -33,9 +33,26 @@ def download_piper_voice():
         
     print(f"Piper voice downloaded to: {onnx_path}")
 
+def download_hindi_piper_voice():
+    print("Downloading Piper Hindi voice...")
+    voice_name = "hi_IN-pratham-medium"
+    voice_url = f"https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/hi/hi_IN/pratham/medium/{voice_name}.onnx"
+    json_url = f"{voice_url}.json"
+    
+    onnx_path = os.path.join(MODELS_DIR, f"{voice_name}.onnx")
+    json_path = os.path.join(MODELS_DIR, f"{voice_name}.onnx.json")
+    
+    if not os.path.exists(onnx_path):
+        urllib.request.urlretrieve(voice_url, onnx_path)
+    if not os.path.exists(json_path):
+        urllib.request.urlretrieve(json_url, json_path)
+        
+    print(f"Piper Hindi voice downloaded to: {onnx_path}")
+
 def run():
     download_qwen()
     download_piper_voice()
+    download_hindi_piper_voice()
     print("All models downloaded successfully!")
     print("Note: faster-whisper will automatically download its model on first run.")
 

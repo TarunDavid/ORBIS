@@ -4,6 +4,7 @@ import subprocess
 MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models')
 QWEN_PATH = os.path.join(MODELS_DIR, 'qwen2.5-1.5b-instruct-q4_k_m.gguf')
 PIPER_ONNX_PATH = os.path.join(MODELS_DIR, 'en_US-lessac-medium.onnx')
+PIPER_HINDI_ONNX_PATH = os.path.join(MODELS_DIR, 'hi_IN-pratham-medium.onnx')
 
 
 import threading
@@ -112,27 +113,44 @@ class STTService:
 class TTSService:
     """Piper text-to-speech via subprocess (Tarun owns implementation)."""
     @staticmethod
-    def generate_audio(text, output_path):
+    def generate_audio(text, output_path, language='english'):
         """
         Uses piper-tts via subprocess or command line.
-        Since we installed piper-tts python package, the 'piper' binary is in the venv path.
+        Uses gTTS for Kannada.
         """
-        if not os.path.exists(PIPER_ONNX_PATH):
+        if language == 'kannada':
+            try:
+                from gtts import gTTS
+                tts = gTTS(text=text, lang='kn')
+                tts.save(output_path)
+                return True
+            except Exception as e:
+                print(f"Failed to run gTTS for Kannada: {e}")
+                return False
+
+        model_path = PIPER_HINDI_ONNX_PATH if language == 'hindi' else PIPER_ONNX_PATH
+
+        if not os.path.exists(model_path):
             raise FileNotFoundError(
-                f"Piper model not found at {PIPER_ONNX_PATH}. "
+                f"Piper model not found at {model_path}. "
                 f"Run: python download_models.py"
             )
 
         import sys
         import shutil
-        piper_bin = (
-            shutil.which('piper')
-            or os.path.join(os.path.dirname(sys.executable), 'Scripts', 'piper.exe')
-            or os.path.join(os.path.dirname(sys.executable), 'piper')
-        )
+        piper_bin = shutil.which('piper')
+        if not piper_bin:
+            win_path = os.path.join(os.path.dirname(sys.executable), 'Scripts', 'piper.exe')
+            unix_path = os.path.join(os.path.dirname(sys.executable), 'piper')
+            if os.path.exists(win_path):
+                piper_bin = win_path
+            elif os.path.exists(unix_path):
+                piper_bin = unix_path
+            else:
+                raise FileNotFoundError("piper executable not found")
         command = [
             piper_bin,
-            "--model", PIPER_ONNX_PATH,
+            "--model", model_path,
             "--output_file", output_path
         ]
 

@@ -9,3 +9,4 @@ piper-tts
 xhtml2pdf
 markdown
 deep-translator
+gTTS

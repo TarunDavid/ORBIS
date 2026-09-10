@@ -64,9 +64,6 @@ const Header = () => {
       } else {
         crumbs.push({ label: 'Chapter' });
       }
-    } else if (path === '/sync') {
-      crumbs.push({ label: 'Dashboard', path: '/dashboard' });
-      crumbs.push({ label: 'Sync Content' });
     }
 
     return crumbs;
@@ -117,15 +114,6 @@ const Header = () => {
             title="My Progress"
           >
             <span className="header-sync-label font-bold tracking-wide">My Progress</span>
-          </button>
-
-          <button
-            onClick={() => navigate('/sync')}
-            className="header-sync-btn clay-btn bg-cobalt text-white"
-            title="Sync Content"
-          >
-            <RefreshCw size={14} />
-            <span className="header-sync-label">Sync</span>
           </button>
 
           <button

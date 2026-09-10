@@ -276,62 +276,68 @@ class ChatbotView(APIView):
         context = get_chapter_context(int(chapter_id))
         if context and len(context) > 6000:
             context = context[:6000]
-        system_prompt = get_system_tutor_prompt(lang, context)
+            
+        # Always use English system prompt for the 1.5B model to prevent hallucination
+        system_prompt = get_system_tutor_prompt('english', context)
+
+        # Translate user prompt to English if the chapter is Hindi/Kannada
+        translated_query = None
+        english_message = message
+        
+        if lang in ['kannada', 'hindi']:
+            try:
+                from deep_translator import GoogleTranslator
+                target_code = 'kn' if lang == 'kannada' else 'hi'
+                
+                # Translate to English for the LLM
+                english_message = GoogleTranslator(source='auto', target='en').translate(message)
+                
+                # If they typed in English originally, we translate TO the target language 
+                # just to show it in the UI as 'translated_message'
+                has_latin = any('a' <= c.lower() <= 'z' for c in message)
+                if has_latin:
+                    translated_query = GoogleTranslator(source='auto', target=target_code).translate(message)
+            except Exception as e:
+                logger.warning(f"Translation failed: {e}")
 
         # Load chat history for this session if available
-        chat_history = self._get_chat_history(session_id)
+        chat_history = self._get_chat_history(session_id, lang)
 
-        # Translate user prompt to the respective language if student asked in English
-        translated_query = None
-        has_latin = any('a' <= c.lower() <= 'z' for c in message)
-        if lang in ['kannada', 'hindi'] and has_latin:
-            translated_query = translate_query_to_language(message, lang)
-
-        if translated_query and translated_query != message:
-            if lang == 'kannada':
-                augmented_message = (
-                    f"ವಿದ್ಯಾರ್ಥಿಯ ಪ್ರಶ್ನೆ (ಕನ್ನಡಕ್ಕೆ ಅನುವಾದಿಸಲಾಗಿದೆ): {translated_query}\n"
-                    f"[ಮೂಲ ಇಂಗ್ಲಿಷ್ ಪ್ರಶ್ನೆ: {message}]\n"
-                    f"[ದಯವಿಟ್ಟು ಕಡ್ಡಾಯವಾಗಿ ಕನ್ನಡ ಲಿಪಿಯಲ್ಲಿಯೇ ಸರಳವಾಗಿ ಮತ್ತು ಸ್ಪಷ್ಟವಾಗಿ ಉತ್ತರಿಸಿ]"
-                )
-            else:
-                augmented_message = (
-                    f"विद्यार्थी का प्रश्न (हिन्दी में अनूदित): {translated_query}\n"
-                    f"[मूल अंग्रेज़ी प्रश्न: {message}]\n"
-                    f"[कृपया अनिवार्य रूप से केवल शुद्ध हिन्दी (देवनागरी लिपि) में ही उत्तर दें]"
-                )
-        else:
-            augmented_message = message
-            if lang == 'kannada' and not any('\u0C80' <= c <= '\u0CFF' for c in message):
-                augmented_message = f"{message}\n[ಸೂಚನೆ: ದಯವಿಟ್ಟು ಕನ್ನಡ ಲಿಪಿಯಲ್ಲಿಯೇ ಉತ್ತರಿಸಿ]"
-            elif lang == 'hindi' and not any('\u0900' <= c <= '\u097F' for c in message):
-                augmented_message = f"{message}\n[निर्देश: कृपया केवल शुद्ध हिन्दी (देवनागरी लिपि) में ही उत्तर दें]"
-
-        # Build messages for chat completion
+        # Build messages for chat completion (all in English)
         messages = [{"role": "system", "content": system_prompt}]
         if chat_history:
             messages.extend(chat_history)
-        messages.append({"role": "user", "content": augmented_message})
+        messages.append({"role": "user", "content": english_message})
 
         try:
             output = LLMService.chat(
                 messages=messages,
-                max_tokens=220,
-                temperature=0.7,
+                max_tokens=300,
+                temperature=0.4,
                 repeat_penalty=1.15,
             )
             response_text = output['choices'][0]['message']['content'].strip()
 
-            # Persist the conversation (store original clean message to database)
+            # Translate the English response back to the target language
+            final_response = response_text
+            if lang in ['kannada', 'hindi']:
+                try:
+                    from deep_translator import GoogleTranslator
+                    target_code = 'kn' if lang == 'kannada' else 'hi'
+                    final_response = GoogleTranslator(source='en', target=target_code).translate(response_text)
+                except Exception as e:
+                    logger.warning(f"Response translation failed: {e}")
+
+            # Persist the conversation (store native messages to database)
             saved_session_id = self._save_messages(
-                student_id, chapter_id, session_id, message, response_text
+                student_id, chapter_id, session_id, message, final_response
             )
 
             return Response({
-                'response': response_text,
+                'response': final_response,
                 'session_id': saved_session_id,
                 'language': lang,
-                'translated_message': translated_query if (translated_query and translated_query != message) else None,
+                'translated_message': translated_query if translated_query else None,
             }, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Chatbot error: {e}")
@@ -340,8 +346,8 @@ class ChatbotView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    def _get_chat_history(self, session_id):
-        """Load previous messages for a chat session."""
+    def _get_chat_history(self, session_id, lang):
+        """Load previous messages for a chat session and translate to English for the LLM."""
         if not session_id:
             return []
         try:
@@ -349,12 +355,23 @@ class ChatbotView(APIView):
             messages = ChatMessage.objects.filter(
                 session_id=session_id
             ).order_by('timestamp')
-            # Limit history to last 10 messages to fit in context window
-            messages = messages[max(0, messages.count() - 10):]
-            return [
-                {'role': msg.role, 'content': msg.content}
-                for msg in messages
-            ]
+            # Limit history to last 4 messages to fit in context window and avoid translation delays
+            messages = messages[max(0, messages.count() - 4):]
+            
+            history = []
+            if lang in ['kannada', 'hindi']:
+                from deep_translator import GoogleTranslator
+                translator = GoogleTranslator(source='auto', target='en')
+                for msg in messages:
+                    try:
+                        en_content = translator.translate(msg.content)
+                        history.append({'role': msg.role, 'content': en_content})
+                    except:
+                        pass
+            else:
+                history = [{'role': msg.role, 'content': msg.content} for msg in messages]
+                
+            return history
         except Exception as e:
             logger.warning(f"Could not load chat history: {e}")
             return []
@@ -420,6 +437,9 @@ class VoiceAssistantView(APIView):
         try:
             # 2. STT (Whisper — Tarun's module)
             stt = STTService.get_instance()
+            lang = get_chapter_language(int(chapter_id))
+            
+            # Remove strict whisper_lang forcing so Whisper auto-detects English vs Regional language
             segments, info = stt.transcribe(audio_path, beam_size=5)
             user_text = "".join([segment.text for segment in segments]).strip()
             logger.info(f"Transcribed voice: {user_text}")
@@ -430,25 +450,49 @@ class VoiceAssistantView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # 3. LLM (Qwen2.5 — grounded in chapter context and language)
-            lang = get_chapter_language(int(chapter_id))
-            context = get_chapter_context(int(chapter_id))
-            system_prompt = get_voice_tutor_prompt(lang, context)
-            prompt = build_chat_prompt(system_prompt, user_text)
+            # Translate transcribed text to English for the LLM
+            english_text = user_text
+            if lang in ['kannada', 'hindi']:
+                try:
+                    from deep_translator import GoogleTranslator
+                    english_text = GoogleTranslator(source='auto', target='en').translate(user_text)
+                except Exception as e:
+                    logger.warning(f"Voice translation failed: {e}")
 
-            output = LLMService.generate(
-                prompt, max_tokens=200,
-                stop=["<|im_end|>"],
-                echo=False,
+            # 3. LLM (Qwen2.5 — grounded in chapter context and language)
+            context = get_chapter_context(int(chapter_id))
+            # Always use English system prompt
+            system_prompt = get_voice_tutor_prompt('english', context)
+            
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": english_text}
+            ]
+
+            output = LLMService.chat(
+                messages=messages,
+                max_tokens=200,
+                temperature=0.4,
+                repeat_penalty=1.15,
             )
-            ai_text = output['choices'][0]['text'].strip()
+            ai_text = output['choices'][0]['message']['content'].strip()
+
+            # Translate English response back to target language
+            final_response = ai_text
+            if lang in ['kannada', 'hindi']:
+                try:
+                    from deep_translator import GoogleTranslator
+                    target_code = 'kn' if lang == 'kannada' else 'hi'
+                    final_response = GoogleTranslator(source='en', target=target_code).translate(ai_text)
+                except Exception as e:
+                    logger.warning(f"Voice response translation failed: {e}")
 
             # 4. TTS (Piper — Tarun's module)
             output_dir = os.path.join(settings.MEDIA_ROOT, 'tts')
             os.makedirs(output_dir, exist_ok=True)
             output_audio_path = os.path.join(output_dir, 'response.wav')
 
-            success = TTSService.generate_audio(ai_text, output_audio_path)
+            success = TTSService.generate_audio(final_response, output_audio_path, language=lang)
 
             if not success:
                 return Response(
@@ -458,7 +502,7 @@ class VoiceAssistantView(APIView):
 
             return Response({
                 'transcribed_text': user_text,
-                'text_response': ai_text,
+                'text_response': final_response,
                 'audio_url': '/media/tts/response.wav',
             }, status=status.HTTP_200_OK)
 

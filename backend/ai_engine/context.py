@@ -238,13 +238,15 @@ def translate_query_to_language(text: str, target_lang: str) -> str:
         lang_code = 'hi-IN'
 
     try:
-        from deep_translator import MyMemoryTranslator
-        translated = MyMemoryTranslator(source='en-US', target=lang_code, email='educarnival.orbis@gmail.com').translate(text)
+        from deep_translator import GoogleTranslator
+        lang_code = 'kn' if target_lang == 'kannada' else 'hi'
+        translator = GoogleTranslator(source='auto', target=lang_code)
+        translated = translator.translate(text)
         if translated and translated.strip():
-            logger.info(f"Translated query [{text}] -> [{translated.strip()}] ({target_lang})")
+            logger.info(f"Translated query [{text}] -> [{translated.strip()}] ({target_lang}) via GoogleTranslator")
             return translated.strip()
     except Exception as e:
-        logger.warning(f"Translation failed via MyMemoryTranslator: {e}")
+        logger.warning(f"Translation failed via GoogleTranslator: {e}")
 
     return text
 

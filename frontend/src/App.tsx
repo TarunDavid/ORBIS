@@ -6,7 +6,6 @@ import ChapterList from './pages/ChapterList';
 import ChapterContent from './pages/ChapterContent';
 import FlashcardScreen from './pages/FlashcardScreen';
 import QuizScreen from './pages/QuizScreen';
-import SyncScreen from './pages/SyncScreen';
 import Profile from './pages/Profile';
 import ProgressDashboard from './pages/ProgressDashboard';
 import Header from './components/Header';
@@ -29,7 +28,6 @@ function AppLayout() {
         <Route path="/chapters/:chapterId" element={<ChapterContent />} />
         <Route path="/chapters/:chapterId/flashcards" element={<FlashcardScreen />} />
         <Route path="/chapters/:chapterId/quiz" element={<QuizScreen />} />
-        <Route path="/sync" element={<SyncScreen />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/progress" element={<ProgressDashboard />} />
         <Route path="*" element={<Navigate to="/" replace />} />
