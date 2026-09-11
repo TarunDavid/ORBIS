@@ -16,7 +16,7 @@ from rest_framework import status
 from django.conf import settings
 
 from .services import LLMService, STTService, TTSService
-from .context import get_chapter_context, get_chapter_language, translate_query_to_language
+from .context import get_chapter_context, get_rag_context, get_chapter_language, translate_query_to_language
 from .prompts import (
     GENERATE_FLASHCARDS,
     GENERATE_QUIZ,
@@ -273,12 +273,6 @@ class ChatbotView(APIView):
             )
 
         lang = get_chapter_language(int(chapter_id))
-        context = get_chapter_context(int(chapter_id))
-        if context and len(context) > 6000:
-            context = context[:6000]
-            
-        # Always use English system prompt for the 1.5B model to prevent hallucination
-        system_prompt = get_system_tutor_prompt('english', context)
 
         # Translate user prompt to English if the chapter is Hindi/Kannada
         translated_query = None
@@ -299,6 +293,12 @@ class ChatbotView(APIView):
                     translated_query = GoogleTranslator(source='auto', target=target_code).translate(message)
             except Exception as e:
                 logger.warning(f"Translation failed: {e}")
+
+        # Fetch semantic RAG context based on the English message
+        context = get_rag_context(int(chapter_id), english_message)
+            
+        # Always use English system prompt for the 1.5B model to prevent hallucination
+        system_prompt = get_system_tutor_prompt('english', context)
 
         # Load chat history for this session if available
         chat_history = self._get_chat_history(session_id, lang)
@@ -460,7 +460,7 @@ class VoiceAssistantView(APIView):
                     logger.warning(f"Voice translation failed: {e}")
 
             # 3. LLM (Qwen2.5 — grounded in chapter context and language)
-            context = get_chapter_context(int(chapter_id))
+            context = get_rag_context(int(chapter_id), english_text)
             # Always use English system prompt
             system_prompt = get_voice_tutor_prompt('english', context)
             
@@ -591,7 +591,7 @@ class FlashcardGenerateView(APIView):
 
 
 class QuizGenerateView(APIView):
-    """Generate AI quiz questions from chapter content."""
+    """Fetch pre-generated AI quiz questions for a chapter."""
 
     def post(self, request, *args, **kwargs):
         chapter_id = request.data.get('chapter_id')
@@ -604,65 +604,58 @@ class QuizGenerateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        context = get_chapter_context(int(chapter_id))
-        messages = build_messages(
-            GENERATE_QUIZ.format(chapter_context=context, count=count)
-        )
-
         try:
-            quiz_data = LLMService.generate_json(
-                messages, max_tokens=800, retries=1
-            )
-
-            if not quiz_data or 'questions' not in quiz_data:
+            from api.models import ChapterQuizQuestion, QuizAttempt, QuizQuestion
+            
+            # Fetch approved questions (or any if not enough approved)
+            questions = ChapterQuizQuestion.objects.filter(
+                chapter_id=chapter_id
+            ).exclude(hint_review_status='needs_rework').order_by('?')[:count]
+            
+            if not questions:
                 return Response(
-                    {'error': 'Failed to parse quiz data. Retrying may help.'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    {'error': 'No pre-generated quiz questions available for this chapter.'},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
 
-            # Save to database
-            attempt_id = self._save_quiz(
-                student_id, chapter_id, quiz_data['questions']
-            )
-
-            return Response({
-                'attempt_id': attempt_id,
-                'questions': quiz_data['questions'],
-            }, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            logger.error(f"Quiz generation error: {e}")
-            return Response(
-                {'error': 'Failed to generate quiz. Please try again.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-
-
-    def _save_quiz(self, student_id, chapter_id, questions):
-        """Persist generated quiz to the database."""
-        try:
-            from api.models import QuizAttempt, QuizQuestion
-
+            # Create attempt
             attempt = QuizAttempt.objects.create(
                 student_id=student_id if student_id else None,
                 chapter_id=chapter_id,
                 total_questions=len(questions),
             )
 
+            response_questions = []
             for i, q in enumerate(questions):
+                # Create the attempt-specific question record
                 QuizQuestion.objects.create(
                     attempt=attempt,
-                    question_text=q.get('question', ''),
-                    options=q.get('options', []),
-                    correct_answer=q.get('correct_answer', ''),
+                    source_question=q,
+                    question_text=q.question_text,
+                    options=q.options,
+                    correct_answer=q.correct_answer,
                     order=i + 1,
                 )
+                
+                response_questions.append({
+                    'id': q.id,
+                    'question': q.question_text,
+                    'options': q.options,
+                    'correct_answer': q.correct_answer,
+                    'hint': q.hint_text,
+                })
 
-            return attempt.id
+            return Response({
+                'attempt_id': attempt.id,
+                'questions': response_questions,
+            }, status=status.HTTP_200_OK)
+
         except Exception as e:
-            logger.warning(f"Could not save quiz: {e}")
-            return None
+            logger.error(f"Quiz fetch error: {e}")
+            return Response(
+                {'error': 'Failed to fetch quiz. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class QuizSubmitView(APIView):
@@ -671,6 +664,7 @@ class QuizSubmitView(APIView):
     def post(self, request, *args, **kwargs):
         attempt_id = request.data.get('attempt_id')
         answers = request.data.get('answers', {})
+        hints_used = request.data.get('hints_used', {})  # Map of question order string to boolean
 
         if not attempt_id:
             return Response(
@@ -690,7 +684,10 @@ class QuizSubmitView(APIView):
 
             for q in questions:
                 student_answer = answers.get(str(q.id), answers.get(str(q.order), ''))
+                hint_used = hints_used.get(str(q.id), hints_used.get(str(q.order), False))
+                
                 q.student_answer = student_answer
+                q.hint_used = hint_used
                 q.save()
 
                 is_correct = student_answer.strip().upper() == q.correct_answer.strip().upper()
@@ -703,6 +700,7 @@ class QuizSubmitView(APIView):
                     'correct_answer': q.correct_answer,
                     'student_answer': student_answer,
                     'is_correct': is_correct,
+                    'hint_used': hint_used,
                 })
 
             attempt.score = score

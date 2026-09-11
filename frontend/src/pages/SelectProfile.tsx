@@ -7,6 +7,7 @@ interface StudentProfile {
   id: number;
   name: string;
   grade: string;
+  profile_picture?: string;
 }
 
 const AVATAR_COLORS = ['bg-cobalt', 'bg-gold', 'bg-mint', 'bg-coral', 'bg-lilac'];
@@ -34,6 +35,11 @@ const SelectProfile = () => {
     localStorage.setItem('student_id', profile.id.toString());
     localStorage.setItem('student_name', profile.name);
     localStorage.setItem('student_grade', profile.grade);
+    if (profile.profile_picture) {
+      localStorage.setItem('student_profile_picture', profile.profile_picture);
+    } else {
+      localStorage.removeItem('student_profile_picture');
+    }
     localStorage.setItem('currentStudent', JSON.stringify(profile));
     navigate('/dashboard');
   };
@@ -62,8 +68,16 @@ const SelectProfile = () => {
                 onClick={() => handleSelect(profile)}
                 className="flex flex-col items-center p-5 bg-white clay-card hover:translate-y-[-2px] hover:shadow-clay-3 transition-all group w-full max-w-[10rem]"
               >
-                <div className={`w-16 h-16 ${AVATAR_COLORS[index % AVATAR_COLORS.length]} clay-circle flex items-center justify-center mb-3`}>
-                  <User size={28} className="text-white" />
+                <div className={`w-16 h-16 ${profile.profile_picture ? '' : AVATAR_COLORS[index % AVATAR_COLORS.length]} clay-circle flex items-center justify-center mb-3 overflow-hidden`}>
+                  {profile.profile_picture ? (
+                    <img 
+                      src={profile.profile_picture.startsWith('http') ? profile.profile_picture : `http://${window.location.hostname || 'localhost'}:8000${profile.profile_picture}`} 
+                      alt={profile.name} 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : (
+                    <User size={28} className="text-white" />
+                  )}
                 </div>
                 <h3 className="font-syne font-bold text-structural text-base truncate w-full text-center" title={profile.name}>{profile.name}</h3>
                 <p className="label-text text-on-surface-variant text-[10px] mt-1">{profile.grade}</p>

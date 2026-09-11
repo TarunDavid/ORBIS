@@ -291,7 +291,7 @@ const ProgressDashboard = () => {
                           <p className="text-[10px] text-stone-500 uppercase">{quiz.subject_name}</p>
                         </td>
                         <td className="py-3 text-right">
-                          {quiz.score === null ? (
+                          {quiz.score == null ? (
                             <span className="clay-chip bg-stone-100 text-stone-500 font-bold px-2 py-1 text-[10px] uppercase tracking-wider">
                               Incomplete
                             </span>

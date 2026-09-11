@@ -178,6 +178,60 @@ def get_chapter_context(chapter_id: int) -> str:
     return full_context
 
 
+def get_rag_context(chapter_id: int, query: str) -> str:
+    """
+    RAG Retrieval: Uses sqlite-vec to find the most relevant chunks of text
+    for the given chapter_id based on semantic similarity to the query.
+    """
+    if not query:
+        return ""
+    
+    try:
+        from sentence_transformers import SentenceTransformer
+        import struct
+        import sqlean
+        import sqlite_vec
+        
+        # Load embedding model (should ideally be a singleton in production)
+        embedder = SentenceTransformer('all-MiniLM-L6-v2')
+        query_embedding = embedder.encode(query).tolist()
+        vector_bytes = struct.pack(f'{len(query_embedding)}f', *query_embedding)
+        
+        # Open separate connection for sqlite-vec
+        db = sqlean.connect('db.sqlite3')
+        db.enable_load_extension(True)
+        sqlite_vec.load(db)
+        
+        cursor = db.cursor()
+        
+        # KNN Search using sqlite-vec
+        cursor.execute("""
+            SELECT chunk.text 
+            FROM vec_content_chunks vec
+            JOIN api_contentchunk chunk ON chunk.id = vec.id
+            WHERE chunk.chapter_id = ?
+              AND vec.embedding MATCH ?
+              AND k = 3
+        """, (chapter_id, vector_bytes))
+        
+        results = cursor.fetchall()
+        db.close()
+        
+        if not results:
+            return "No specific chapter materials found for this question."
+        
+        context_parts = ["[Retrieved Chapter Material]:"]
+        for idx, (text,) in enumerate(results):
+            context_parts.append(f"--- Excerpt {idx+1} ---\n{text}")
+            
+        return "\n\n".join(context_parts)
+        
+    except Exception as e:
+        logger.error(f"RAG retrieval failed: {e}")
+        # Fallback to dumping the whole chapter
+        return get_chapter_context(chapter_id)
+
+
 def invalidate_cache(chapter_id: int = None):
     """
     Clear cached context. Call when chapter content is updated
