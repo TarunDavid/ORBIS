@@ -14,9 +14,11 @@ const formatMath = (text: string) => {
 };
 
 interface QuizQuestionData {
+  id: number;
   question: string;
   options: string[];
   correct_answer: string;
+  hint?: string;
 }
 
 interface QuizResult {
@@ -51,6 +53,7 @@ const QuizScreen = () => {
   const [attemptId, setAttemptId] = useState<number | null>(null);
   const [currentQ, setCurrentQ] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
+  const [hintsUsed, setHintsUsed] = useState<Record<number, boolean>>({});
   const [results, setResults] = useState<QuizResult[]>([]);
   const [score, setScore] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
@@ -79,6 +82,7 @@ const QuizScreen = () => {
     setPhase('loading');
     setError('');
     setSelectedAnswers({});
+    setHintsUsed({});
     setCurrentQ(0);
     setResults([]);
     setAnalysisPhase('idle');
@@ -96,9 +100,13 @@ const QuizScreen = () => {
       setQuestions(res.data.questions);
       setAttemptId(res.data.attempt_id);
       setPhase('answering');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Quiz generation error', err);
-      setError('Failed to generate quiz. Make sure the AI backend is running.');
+      if (err.response?.status === 404) {
+        setError('No offline quiz questions have been generated for this chapter yet. The content team needs to run the generation pipeline for this chapter.');
+      } else {
+        setError('Failed to fetch quiz. Make sure the backend is running.');
+      }
       setPhase('error');
     }
   };
@@ -129,15 +137,18 @@ const QuizScreen = () => {
 
     try {
       const answerMap: Record<string, string> = {};
-      questions.forEach((_, idx) => {
+      const hintMap: Record<string, boolean> = {};
+      questions.forEach((q, idx) => {
         const selected = selectedAnswers[idx] || '';
         const letter = selected.charAt(0);
-        answerMap[String(idx + 1)] = letter;
+        answerMap[String(q.id)] = letter;
+        hintMap[String(q.id)] = !!hintsUsed[idx];
       });
 
       const res = await api.post('ai/quiz/submit/', {
         attempt_id: attemptId,
         answers: answerMap,
+        hints_used: hintMap,
       });
 
       setResults(res.data.results);
@@ -266,8 +277,8 @@ const QuizScreen = () => {
         {phase === 'loading' && (
           <div className="clay-card bg-white p-12 flex flex-col items-center justify-center my-10 max-w-lg mx-auto text-center space-y-4">
             <div className="clay-spinner"></div>
-            <p className="font-syne font-bold text-lg text-[#121316]">Generating Chapter Quiz...</p>
-            <p className="font-grotesk text-xs uppercase tracking-wider text-stone-500">Creating custom questions with on-device AI</p>
+            <p className="font-syne font-bold text-lg text-[#121316]">Loading Chapter Quiz...</p>
+            <p className="font-grotesk text-xs uppercase tracking-wider text-stone-500">Retrieving pre-generated questions</p>
           </div>
         )}
 
@@ -319,6 +330,24 @@ const QuizScreen = () => {
               <h2 className="text-xl md:text-2xl font-syne font-bold text-[#121316] mb-6 leading-snug">
                 {questions[currentQ].question}
               </h2>
+
+              {questions[currentQ].hint && (
+                <div className="mb-6">
+                  {!hintsUsed[currentQ] ? (
+                    <button
+                      onClick={() => setHintsUsed(prev => ({ ...prev, [currentQ]: true }))}
+                      className="text-xs font-grotesk font-bold text-cobalt hover:text-indigo-800 flex items-center gap-1 bg-cobalt/10 px-3 py-1.5 rounded-md transition-colors"
+                    >
+                      <Sparkles size={14} /> Get a Hint
+                    </button>
+                  ) : (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm font-jakarta text-amber-900 shadow-xs flex items-start gap-2">
+                      <Sparkles size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                      <span>{questions[currentQ].hint}</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-3">
                 {questions[currentQ].options.map((option, i) => {

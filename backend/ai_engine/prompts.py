@@ -190,6 +190,23 @@ CHAPTER CONTENT:
 Respond ONLY with valid JSON in this exact format, no other text:
 {{"questions": [{{"question": "question text", "options": ["A) option", "B) option", "C) option", "D) option"], "correct_answer": "A"}}]}}"""
 
+GENERATE_OFFLINE_QUIZ_WITH_HINTS = """Based on the chapter content below, generate {count} multiple-choice quiz questions to test a student's understanding.
+Each question MUST also include a helpful 'hint' for the student.
+
+CRITICAL HINT RULES:
+1. The hint MUST NOT contain the correct answer's text, or a close paraphrase/synonym of it.
+2. The hint MUST NOT eliminate all incorrect options, leaving only one possible answer.
+3. The hint MUST point toward a concept, fact, or way of thinking about the question (e.g., "think about what happens to water when it gets very cold") rather than pointing at an option.
+4. The hint MUST be a single short sentence.
+
+Each question should have exactly 4 options (A, B, C, D) with one correct answer.
+
+CHAPTER CONTENT:
+{chapter_context}
+
+Respond ONLY with valid JSON in this exact format, no other text:
+{{"questions": [{{"question": "question text", "options": ["A) option", "B) option", "C) option", "D) option"], "correct_answer": "A", "hint": "A single short sentence hint."}}]}}"""
+
 EXPLAIN_INCORRECT_QUESTION = """You are ORBIS AI Tutor helping a student understand a mistake on a quiz.
 Explain why the correct answer is right and why their selected answer is wrong. Keep it brief, encouraging, and easy to understand for a school student. Use standard markdown math delimiters ($ and $$).
 

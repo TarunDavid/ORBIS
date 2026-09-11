@@ -130,6 +130,25 @@ class Flashcard(models.Model):
         return f"Card: {self.front[:40]}"
 
 
+class ChapterQuizQuestion(models.Model):
+    """Pre-generated quiz questions with hints for offline content pipeline."""
+    REVIEW_STATUS_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('needs_rework', 'Needs Rework'),
+    ]
+    chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='quiz_questions')
+    question_text = models.TextField()
+    options = models.JSONField(default=list)  # list of option strings
+    correct_answer = models.CharField(max_length=255)
+    hint_text = models.TextField(blank=True)
+    hint_review_status = models.CharField(max_length=20, choices=REVIEW_STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Q for {self.chapter.title}: {self.question_text[:40]}"
+
+
 class QuizAttempt(models.Model):
     """A quiz attempt by a student for a chapter."""
     student = models.ForeignKey(
@@ -156,10 +175,15 @@ class QuizQuestion(models.Model):
         QuizAttempt, on_delete=models.CASCADE,
         related_name='questions',
     )
+    source_question = models.ForeignKey(
+        ChapterQuizQuestion, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='attempts'
+    )
     question_text = models.TextField()
     options = models.JSONField(default=list)  # list of option strings
     correct_answer = models.CharField(max_length=255)
     student_answer = models.CharField(max_length=255, null=True, blank=True)
+    hint_used = models.BooleanField(default=False)
     order = models.IntegerField(default=0)
 
     class Meta:
@@ -237,3 +261,18 @@ class ActivityEvent(models.Model):
 
     def __str__(self):
         return f"{self.event_type} - {self.student.name} at {self.timestamp}"
+
+
+class ContentChunk(models.Model):
+    """Stores text chunks from chapter resources for vector semantic search."""
+    chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='content_chunks')
+    resource_type = models.CharField(max_length=50) # e.g. 'notes', 'transcript', 'textbook'
+    text = models.TextField()
+    order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['chapter', 'resource_type', 'order']
+
+    def __str__(self):
+        return f"Chunk {self.order} for {self.chapter.title} ({self.resource_type})"
