@@ -65,10 +65,7 @@ async function hashOtp(otp: string): Promise<string> {
   }
 }
 
-function generateOtp(): string {
-  // Always 4 digits
-  return String(Math.floor(1000 + Math.random() * 9000));
-}
+// generateOtp removed as parent sets their own pin
 
 // ---------------------------------------------------------------------------
 // localStorage helpers (graceful fallback)
@@ -142,7 +139,8 @@ const ParentSessionLock = ({ containerRef, onSessionEnd, onLockStateChange, onFu
   const [selectedDuration, setSelectedDuration] = useState<number>(DURATION_OPTIONS[0].ms);
   const [customMinutes, setCustomMinutes] = useState('');
   const [isCustom, setIsCustom] = useState(false);
-  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [parentPin, setParentPin] = useState('');
+  const [setupError, setSetupError] = useState('');
   const [otpInput, setOtpInput] = useState('');
   const [otpError, setOtpError] = useState('');
   const [showLockOverlay, setShowLockOverlay] = useState(false);
@@ -341,8 +339,13 @@ const ParentSessionLock = ({ containerRef, onSessionEnd, onLockStateChange, onFu
   // -----------------------------------------------------------------------
 
   const handleStartSetup = async () => {
-    const otp = generateOtp();
-    const hashed = await hashOtp(otp);
+    if (!/^\d{4}$/.test(parentPin)) {
+      setSetupError('Please enter a 4-digit PIN');
+      return;
+    }
+    setSetupError('');
+
+    const hashed = await hashOtp(parentPin);
 
     let duration = selectedDuration;
     if (isCustom && customMinutes) {
@@ -352,21 +355,13 @@ const ParentSessionLock = ({ containerRef, onSessionEnd, onLockStateChange, onFu
       }
     }
 
-    // Store hash now, but DON'T calculate expiresAt yet — do that when session actually starts
     hashedOtpRef.current = hashed;
     setDurationMs(duration);
 
-    setGeneratedOtp(otp);
-    setPhase('show-otp');
-  };
-
-  const handleConfirmOtp = () => {
-    // NOW calculate the real expiresAt — timer starts here, not when OTP was generated
-    const expiresAt = Date.now() + durationMs;
+    const expiresAt = Date.now() + duration;
     expiresAtRef.current = expiresAt;
-    saveLockRecord({ hashedOtp: hashedOtpRef.current!, expiresAt });
+    saveLockRecord({ hashedOtp: hashed, expiresAt });
 
-    setGeneratedOtp(''); // Clear plain OTP from memory immediately
     setPhase('locked');
     onLockStateChange?.(true);
     setShowLockOverlay(false);
@@ -420,7 +415,7 @@ const ParentSessionLock = ({ containerRef, onSessionEnd, onLockStateChange, onFu
     setShowLockOverlay(false);
     setOtpInput('');
     setOtpError('');
-    setGeneratedOtp('');
+    setParentPin('');
     onSessionEnd();
   };
 
@@ -443,7 +438,7 @@ const ParentSessionLock = ({ containerRef, onSessionEnd, onLockStateChange, onFu
         </div>
 
         <p className="font-jakarta text-sm text-stone-600 leading-relaxed">
-          Set a study duration for your child. A 4-digit code will be generated that only you can use to exit the session early. The session will auto-unlock when the timer expires.
+          Set a study duration and a 4-digit PIN for your child's session. Only you can use this PIN to exit the session early. The session will auto-unlock when the timer expires.
         </p>
 
         {/* Duration Selector */}
@@ -491,72 +486,42 @@ const ParentSessionLock = ({ containerRef, onSessionEnd, onLockStateChange, onFu
           )}
         </div>
 
+        {/* PIN Input */}
+        <div className="space-y-3">
+          <p className="font-grotesk font-bold text-xs uppercase tracking-wider text-stone-500">Set Parent PIN</p>
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={4}
+            value={parentPin}
+            onChange={(e) => {
+              setParentPin(e.target.value.replace(/\D/g, ''));
+              setSetupError('');
+            }}
+            placeholder="Enter 4-digit PIN"
+            className="clay-card-sm bg-canvas w-full px-4 py-3 font-grotesk font-bold text-xl text-center tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-cobalt placeholder:text-stone-400 placeholder:tracking-normal placeholder:text-sm"
+          />
+          {setupError && (
+            <p className="font-grotesk text-xs text-coral font-bold uppercase tracking-wider text-center animate-pulse">
+              {setupError}
+            </p>
+          )}
+        </div>
+
         <button
           onClick={handleStartSetup}
           className="clay-btn w-full bg-gold text-[#121316] py-3.5 font-grotesk font-bold text-sm flex items-center justify-center gap-2"
         >
           <Lock size={18} />
-          <span>Generate Parent Code</span>
+          <span>Lock Session</span>
         </button>
         </div>
       </div>
     );
   }
 
-  // -----------------------------------------------------------------------
-  // Render: Show OTP Phase (shown once to parent)
-  // -----------------------------------------------------------------------
 
-  if (phase === 'show-otp') {
-    return (
-      <div className="fixed inset-0 z-[9998] bg-[#121316]/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div className="clay-card bg-white p-6 md:p-8 space-y-6 max-w-md w-full">
-          <div className="flex items-center gap-3">
-          <div className="clay-circle bg-gold text-[#121316] p-2.5">
-            <Shield size={22} />
-          </div>
-          <div>
-            <h3 className="font-syne font-extrabold text-xl text-[#121316]">Your Parent Code</h3>
-            <p className="font-grotesk text-xs text-stone-500 uppercase tracking-wider">Write this down — it won't be shown again</p>
-          </div>
-        </div>
-
-        {/* OTP Display */}
-        <div className="clay-card-lg bg-canvas p-6 text-center space-y-2">
-          <p className="font-grotesk text-xs uppercase tracking-widest text-stone-500 font-bold">Unlock Code</p>
-          <div className="flex justify-center gap-3">
-            {generatedOtp.split('').map((digit, i) => (
-              <div
-                key={i}
-                className="clay-card-sm bg-white w-14 h-16 flex items-center justify-center"
-              >
-                <span className="font-syne font-extrabold text-3xl text-cobalt">{digit}</span>
-              </div>
-            ))}
-          </div>
-          <p className="font-jakarta text-xs text-stone-500 mt-2">
-            This code expires when the session ends and cannot be reused.
-          </p>
-        </div>
-
-        <div className="clay-card-sm bg-gold/20 p-3 flex items-start gap-2">
-          <AlertTriangle size={16} className="text-gold-dark mt-0.5 flex-shrink-0" />
-          <p className="font-jakarta text-xs text-stone-700 leading-relaxed">
-            <strong>Important:</strong> Note this code and keep it safe. Once the session starts, you'll need this code to unlock early. The screen will be locked.
-          </p>
-        </div>
-
-        <button
-          onClick={handleConfirmOtp}
-          className="clay-btn w-full bg-cobalt text-white py-3.5 font-grotesk font-bold text-sm flex items-center justify-center gap-2"
-        >
-          <Lock size={18} />
-          <span>I've noted it — Start Session!</span>
-        </button>
-        </div>
-      </div>
-    );
-  }
 
   // -----------------------------------------------------------------------
   // Render: Completed Phase (celebration screen)
