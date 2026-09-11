@@ -1,10 +1,10 @@
 from rest_framework import serializers
 from .models import (
-    Student, Grade, Subject, Chapter, ChapterResource,
+    Student, Grade, Subject, Chapter, ChapterResource, ChapterFormulaSheet,
     ChatSession, ChatMessage,
     FlashcardSet, Flashcard,
-    QuizAttempt, QuizQuestion,
-    LearningProgress, ActivityEvent
+    QuizAttempt, QuizQuestion, LearningProgress,
+    WeakConcept, ActivityEvent
 )
 
 
@@ -56,6 +56,12 @@ class GradeSerializer(serializers.ModelSerializer):
 # ==========================================================================
 # Learning State Serializers
 # ==========================================================================
+
+class ChapterFormulaSheetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChapterFormulaSheet
+        fields = ['id', 'chapter', 'content', 'created_at']
+
 
 class ChatMessageSerializer(serializers.ModelSerializer):
     class Meta:

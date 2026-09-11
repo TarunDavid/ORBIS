@@ -130,6 +130,16 @@ class Flashcard(models.Model):
         return f"Card: {self.front[:40]}"
 
 
+class ChapterFormulaSheet(models.Model):
+    """AI-generated formula sheet in Markdown for Math/Science chapters."""
+    chapter = models.OneToOneField(Chapter, on_delete=models.CASCADE, related_name='formula_sheet')
+    content = models.TextField()  # Markdown with LaTeX
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Formula Sheet: {self.chapter.title}"
+
+
 class ChapterQuizQuestion(models.Model):
     """Pre-generated quiz questions with hints for offline content pipeline."""
     REVIEW_STATUS_CHOICES = [

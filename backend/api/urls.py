@@ -4,6 +4,7 @@ from .views import (
     StudentViewSet, GradeViewSet, SubjectViewSet, ChapterViewSet,
     ChatSessionViewSet, FlashcardSetViewSet,
     QuizAttemptViewSet, LearningProgressViewSet,
+    ChapterFormulaSheetViewSet
 )
 from .sync_views import export_sync, import_sync, scan_media
 from . import chunk_views
@@ -15,6 +16,7 @@ router.register(r'subjects', SubjectViewSet)
 router.register(r'chapters', ChapterViewSet)
 router.register(r'chat-sessions', ChatSessionViewSet, basename='chatsession')
 router.register(r'flashcard-sets', FlashcardSetViewSet, basename='flashcardset')
+router.register(r'formula-sheets', ChapterFormulaSheetViewSet, basename='formulasheet')
 router.register(r'quiz-attempts', QuizAttemptViewSet, basename='quizattempt')
 router.register(r'progress', LearningProgressViewSet, basename='learningprogress')
 

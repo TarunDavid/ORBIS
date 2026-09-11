@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
-import { ArrowLeft, Sparkles, MessageCircle, Mic, FileText, Book, PlayCircle, Layers, Brain, Eye, Presentation, Shield, X } from 'lucide-react';
+import { ArrowLeft, Sparkles, MessageCircle, Mic, FileText, Book, BookOpen, PlayCircle, Layers, Brain, Eye, Presentation, Shield, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import AIChatbot from '../components/AIChatbot';
 import AttentionTracker from '../components/AttentionTracker';
@@ -32,6 +32,7 @@ const ChapterContent = () => {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState('');
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [hasFormulaSheet, setHasFormulaSheet] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
   const [focusModeActive, setFocusModeActive] = useState(false);
   const [isDistracted, setIsDistracted] = useState(false);
@@ -75,8 +76,14 @@ const ChapterContent = () => {
         const res = await api.get(`chapters/${chapterId}/`);
         setChapter(res.data);
         updateProgress({ video_watched: true, notes_viewed: true });
+
+        // Check if there is a formula sheet
+        const fRes = await api.get(`formula-sheets/?chapter_id=${chapterId}`);
+        if (fRes.data && fRes.data.length > 0) {
+          setHasFormulaSheet(true);
+        }
       } catch (error) {
-        console.error('Error fetching chapter', error);
+        console.error('Error fetching chapter data', error);
       } finally {
         setLoading(false);
       }
@@ -582,6 +589,15 @@ const ChapterContent = () => {
                   <Layers size={18} className="text-cobalt" />
                   <span>Flashcards</span>
                 </button>
+                {hasFormulaSheet && (
+                  <button
+                    onClick={() => navigate(`/chapters/${chapterId}/formulas`)}
+                    className="clay-btn w-full bg-white text-[#121316] hover:bg-stone-50 py-3 flex items-center justify-center gap-2.5 text-sm font-bold"
+                  >
+                    <BookOpen size={18} className="text-emerald-500" />
+                    <span>Formula Sheet</span>
+                  </button>
+                )}
                 <button
                   onClick={() => navigate(`/chapters/${chapterId}/quiz`)}
                   className="clay-btn w-full bg-cobalt text-white hover:bg-blue-700 py-3 flex items-center justify-center gap-2.5 text-sm font-bold"

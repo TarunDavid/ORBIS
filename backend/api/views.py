@@ -12,13 +12,13 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from .models import (
     Student, Grade, Subject, Chapter,
     ChatSession, FlashcardSet, QuizAttempt, LearningProgress,
-    ActivityEvent,
+    ActivityEvent, ChapterFormulaSheet,
 )
 from .serializers import (
     StudentSerializer, GradeSerializer, SubjectSerializer, ChapterSerializer,
     ChatSessionSerializer, FlashcardSetSerializer,
     QuizAttemptSerializer, LearningProgressSerializer,
-    ActivityEventSerializer,
+    ActivityEventSerializer, ChapterFormulaSheetSerializer,
 )
 
 
@@ -195,6 +195,18 @@ class FlashcardSetViewSet(viewsets.ReadOnlyModelViewSet):
         chapter_id = self.request.query_params.get('chapter_id')
         if student_id:
             qs = qs.filter(student_id=student_id)
+        if chapter_id:
+            qs = qs.filter(chapter_id=chapter_id)
+        return qs.order_by('-created_at')
+
+
+class ChapterFormulaSheetViewSet(viewsets.ReadOnlyModelViewSet):
+    """Retrieve formula sheets by chapter."""
+    serializer_class = ChapterFormulaSheetSerializer
+
+    def get_queryset(self):
+        qs = ChapterFormulaSheet.objects.all()
+        chapter_id = self.request.query_params.get('chapter_id')
         if chapter_id:
             qs = qs.filter(chapter_id=chapter_id)
         return qs.order_by('-created_at')
