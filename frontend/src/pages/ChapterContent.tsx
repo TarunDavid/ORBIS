@@ -5,6 +5,7 @@ import { ArrowLeft, Sparkles, MessageCircle, Mic, FileText, Book, PlayCircle, La
 import ReactMarkdown from 'react-markdown';
 import AIChatbot from '../components/AIChatbot';
 import AttentionTracker from '../components/AttentionTracker';
+import SyncManager from '../components/SyncManager';
 
 interface Resource {
   id: number;
@@ -203,9 +204,12 @@ const ChapterContent = () => {
             <span>Back to Chapters</span>
           </button>
 
-          <div className="clay-chip bg-mint text-[#121316] px-3.5 py-1 flex items-center gap-2 shadow-sm">
-            <span className="neon-dot"></span>
-            <span>Offline Ready</span>
+          <div className="flex items-center gap-2">
+            <SyncManager compact />
+            <div className="clay-chip bg-mint text-[#121316] px-3.5 py-1 flex items-center gap-2 shadow-sm">
+              <span className="neon-dot"></span>
+              <span>Offline Ready</span>
+            </div>
           </div>
         </div>
 

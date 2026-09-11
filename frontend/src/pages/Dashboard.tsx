@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import { BookOpen, BookA, AlertCircle, FlaskConical, Globe } from 'lucide-react';
+import SyncManager from '../components/SyncManager';
 
 interface Subject {
   id: number;
@@ -209,53 +210,60 @@ const Dashboard = () => {
             <p className="font-grotesk font-bold text-xs uppercase tracking-wider text-on-surface-variant">Loading Subjects...</p>
           </div>
         ) : (
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-syne text-2xl font-bold text-structural">Your Subjects</h2>
-              <span className="clay-chip bg-gold text-structural px-3 py-1 text-xs">
-                {subjects.length} AVAILABLE
-              </span>
+          <>
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="font-syne text-2xl font-bold text-structural">Your Subjects</h2>
+                <span className="clay-chip bg-gold text-structural px-3 py-1 text-xs">
+                  {subjects.length} AVAILABLE
+                </span>
+              </div>
+
+              {subjects.length === 0 ? (
+                <div className="bg-white p-8 clay-card text-center space-y-4">
+                  <p className="text-on-surface-variant font-jakarta">No subjects found for this grade yet.</p>
+                  <button 
+                    onClick={fetchSubjects}
+                    className="clay-btn bg-cobalt text-white px-6 py-2.5 text-sm"
+                  >
+                    Reload Subjects
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  {subjects.map((subject, index) => {
+                    const color = SUBJECT_COLORS[index % SUBJECT_COLORS.length];
+                    const IconComponent = getSubjectIcon(subject);
+                    const chapterCount = subject.chapters?.length || 0;
+                    return (
+                      <button 
+                        key={subject.id}
+                        onClick={() => navigate(`/subjects/${subject.id}/chapters`)}
+                        className="bg-white clay-card p-6 flex flex-col items-center justify-center gap-4 text-center group hover:translate-y-[-2px] hover:shadow-clay-3 transition-all relative overflow-hidden"
+                      >
+                        {/* Color accent stripe */}
+                        <div className={`absolute left-0 top-0 bottom-0 w-[6px] ${color.stripe} rounded-l-clay`}></div>
+                        <div className={`w-16 h-16 ${color.bg} clay-circle flex items-center justify-center`}>
+                          <IconComponent size={28} className={color.text} />
+                        </div>
+                        <h3 className="font-syne text-lg font-bold text-structural">{subject.display_name}</h3>
+                        {chapterCount > 0 && (
+                          <span className="clay-chip bg-canvas text-on-surface-variant px-2.5 py-0.5 text-[10px]">
+                            {chapterCount} {chapterCount === 1 ? 'CHAPTER' : 'CHAPTERS'}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {subjects.length === 0 ? (
-              <div className="bg-white p-8 clay-card text-center space-y-4">
-                <p className="text-on-surface-variant font-jakarta">No subjects found for this grade yet.</p>
-                <button 
-                  onClick={fetchSubjects}
-                  className="clay-btn bg-cobalt text-white px-6 py-2.5 text-sm"
-                >
-                  Reload Subjects
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {subjects.map((subject, index) => {
-                  const color = SUBJECT_COLORS[index % SUBJECT_COLORS.length];
-                  const IconComponent = getSubjectIcon(subject);
-                  const chapterCount = subject.chapters?.length || 0;
-                  return (
-                    <button 
-                      key={subject.id}
-                      onClick={() => navigate(`/subjects/${subject.id}/chapters`)}
-                      className="bg-white clay-card p-6 flex flex-col items-center justify-center gap-4 text-center group hover:translate-y-[-2px] hover:shadow-clay-3 transition-all relative overflow-hidden"
-                    >
-                      {/* Color accent stripe */}
-                      <div className={`absolute left-0 top-0 bottom-0 w-[6px] ${color.stripe} rounded-l-clay`}></div>
-                      <div className={`w-16 h-16 ${color.bg} clay-circle flex items-center justify-center`}>
-                        <IconComponent size={28} className={color.text} />
-                      </div>
-                      <h3 className="font-syne text-lg font-bold text-structural">{subject.display_name}</h3>
-                      {chapterCount > 0 && (
-                        <span className="clay-chip bg-canvas text-on-surface-variant px-2.5 py-0.5 text-[10px]">
-                          {chapterCount} {chapterCount === 1 ? 'CHAPTER' : 'CHAPTERS'}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+            {/* Content Sync Panel */}
+            <div className="mt-8">
+              <SyncManager />
+            </div>
+          </>
         )}
       </div>
     </div>
