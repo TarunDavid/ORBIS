@@ -26,7 +26,7 @@ SECRET_KEY = "django-insecure-vr^l%k#8rso(ujarjo!-^(^u#elgum9w(ici1su+a&w-rz5&oh
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']  # Allow LAN access for demo
 
 
 # Application definition
@@ -55,7 +55,34 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://localhost:\d+",
+    r"^http://127\.0\.0\.1:\d+",
+    r"^http://192\.168\.\d+\.\d+:\d+",
+    r"^http://172\.\d+\.\d+\.\d+:\d+",
+    r"^http://10\.\d+\.\d+\.\d+:\d+",
+]
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://172.20.10.2:5173",
+]
+
+# Disable CSRF for this offline-first local application
+class CsrfExemptSessionAuthentication:
+    def authenticate(self, request):
+        from django.contrib.auth.middleware import get_user
+        user = get_user(request)
+        if user and user.is_authenticated:
+            return (user, None)
+        return None
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'educarnival.settings.CsrfExemptSessionAuthentication',
+    ),
+}
 
 ROOT_URLCONF = "educarnival.urls"
 
@@ -139,3 +166,27 @@ MAILERS = {
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ==========================================================================
+# ORBIS Teacher Portal Settings
+# ==========================================================================
+
+ORBIS_SOFT_DELETE_RETENTION_DAYS = 7
+
+ORBIS_MAX_UPLOAD_SIZE_MB = {
+    'video': 500,
+    'notes': 50,
+    'ppt': 100,
+    'textbook': 50,
+}
+
+ORBIS_ALLOWED_EXTENSIONS = {
+    'video': ['.mp4', '.mkv', '.webm', '.avi', '.mov'],
+    'notes': ['.pdf', '.doc', '.docx'],
+    'ppt': ['.ppt', '.pptx', '.odp', '.key'],
+    'textbook': ['.pdf'],
+}
+
+# Stream large uploads to disk after 10MB (don't hold in memory)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = None

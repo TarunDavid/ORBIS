@@ -276,3 +276,115 @@ class ContentChunk(models.Model):
 
     def __str__(self):
         return f"Chunk {self.order} for {self.chapter.title} ({self.resource_type})"
+
+
+# ==========================================================================
+# Teacher Portal Models
+# ==========================================================================
+
+class TeacherProfile(models.Model):
+    """Teacher profile linked to Django's built-in User model."""
+    user = models.OneToOneField(
+        'auth.User', on_delete=models.CASCADE, related_name='teacher_profile'
+    )
+    display_name = models.CharField(max_length=255)
+    assigned_subjects = models.ManyToManyField(Subject, blank=True, related_name='assigned_teachers')
+    is_admin = models.BooleanField(default=False, help_text='Admins can manage all subjects')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Teacher: {self.display_name}"
+
+    def can_manage_subject(self, subject):
+        """Check if teacher can manage a given subject (admin can manage all)."""
+        if self.is_admin:
+            return True
+        return self.assigned_subjects.filter(pk=subject.pk).exists()
+
+
+class ContentAsset(models.Model):
+    """Tracks every uploaded content file with hash, version, and soft-delete status."""
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('soft_deleted', 'Soft Deleted'),
+        ('purged', 'Purged'),
+    ]
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='content_assets')
+    chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='content_assets')
+    content_type = models.CharField(max_length=20)  # video, notes, ppt, textbook
+    filename = models.CharField(max_length=500)
+    file_path = models.CharField(max_length=1000)  # relative to MEDIA_ROOT
+    size_bytes = models.BigIntegerField()
+    sha256 = models.CharField(max_length=64, blank=True, default='')
+    version = models.IntegerField(default=1)
+    uploaded_by = models.ForeignKey(
+        'auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_assets'
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deletion_reason = models.TextField(blank=True, default='')
+    chapter_resource = models.OneToOneField(
+        ChapterResource, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='content_asset',
+        help_text='Links to the existing ChapterResource record'
+    )
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f"{self.content_type}: {self.filename} ({self.status})"
+
+
+class SyncManifestVersion(models.Model):
+    """Tracks the current manifest version for lightweight sync checks."""
+    version_number = models.IntegerField(unique=True)
+    generated_at = models.DateTimeField(auto_now_add=True)
+    manifest_checksum = models.CharField(max_length=64, blank=True, default='')
+    notes = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['-version_number']
+
+    def __str__(self):
+        return f"Manifest v{self.version_number}"
+
+
+class DeviceSyncStatus(models.Model):
+    """Tracks which manifest version each student device has synced to."""
+    device_id = models.CharField(max_length=255, unique=True)
+    device_name = models.CharField(max_length=255, blank=True, default='')
+    last_synced_manifest_version = models.IntegerField(default=0)
+    last_synced_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Device {self.device_id} @ v{self.last_synced_manifest_version}"
+
+
+class TeacherActivityLog(models.Model):
+    """Audit trail for all teacher content management actions."""
+    ACTION_CHOICES = [
+        ('upload', 'Upload'),
+        ('remove', 'Remove'),
+        ('restore', 'Restore'),
+        ('hard_delete', 'Hard Delete'),
+    ]
+    teacher = models.ForeignKey(
+        'auth.User', on_delete=models.SET_NULL, null=True, related_name='teacher_activity_logs'
+    )
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    content_asset = models.ForeignKey(
+        ContentAsset, on_delete=models.SET_NULL, null=True, blank=True, related_name='activity_logs'
+    )
+    asset_filename = models.CharField(max_length=500, default='')  # denormalized for readability
+    subject_name = models.CharField(max_length=100, default='')
+    chapter_title = models.CharField(max_length=255, default='')
+    timestamp = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.action}: {self.asset_filename} by {self.teacher}"

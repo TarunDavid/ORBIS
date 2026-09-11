@@ -140,3 +140,109 @@ def scan_media(request):
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
+
+@api_view(['GET'])
+def sync_manifest_version(request):
+    """
+    Lightweight version check — clients poll this to see if anything has changed.
+    Returns just the version number and checksum, no full manifest diff.
+    """
+    from .models import SyncManifestVersion
+    latest = SyncManifestVersion.objects.first()
+    if latest:
+        return Response({
+            'version': latest.version_number,
+            'checksum': latest.manifest_checksum,
+            'generated_at': latest.generated_at.isoformat(),
+        })
+    return Response({
+        'version': 0,
+        'checksum': '',
+        'generated_at': None,
+    })
+
+
+@api_view(['GET'])
+def sync_full_manifest(request):
+    """
+    Full manifest with tombstones. Clients call this when version check
+    indicates new content is available. Optionally filter by `since_version`
+    to get only changes since a specific version.
+    """
+    from .models import ContentAsset, SyncManifestVersion
+    from .content_pipeline import regenerate_manifest
+
+    since_version = request.query_params.get('since_version', None)
+
+    # Get current manifest
+    latest = SyncManifestVersion.objects.first()
+    if not latest:
+        # Generate initial manifest
+        manifest_data = regenerate_manifest()
+        return Response(manifest_data)
+
+    # Build entries
+    entries = []
+
+    # Active assets
+    for asset in ContentAsset.objects.filter(status='active').select_related('subject', 'chapter'):
+        entries.append({
+            'type': 'active',
+            'file_path': f"/media/{asset.file_path.replace(os.sep, '/')}",
+            'sha256': asset.sha256,
+            'size_bytes': asset.size_bytes,
+            'content_type': asset.content_type,
+            'filename': asset.filename,
+            'version': asset.version,
+            'subject': asset.subject.display_name,
+            'chapter': asset.chapter.title,
+        })
+
+    # Tombstones
+    for asset in ContentAsset.objects.filter(status__in=['soft_deleted', 'purged']):
+        entries.append({
+            'type': 'deleted',
+            'file_path': f"/media/{asset.file_path.replace(os.sep, '/')}",
+            'last_known_sha256': asset.sha256,
+            'deleted_at': asset.deleted_at.isoformat() if asset.deleted_at else None,
+        })
+
+    return Response({
+        'version': latest.version_number,
+        'checksum': latest.manifest_checksum,
+        'generated_at': latest.generated_at.isoformat(),
+        'entries': entries,
+        'entry_count': len(entries),
+    })
+
+
+@api_view(['POST'])
+def sync_device_checkin(request):
+    """
+    Device reports its current synced manifest version.
+    Updates DeviceSyncStatus for dashboard tracking.
+    """
+    from .models import DeviceSyncStatus
+
+    device_id = request.data.get('device_id')
+    if not device_id:
+        return Response({'error': 'device_id is required'}, status=400)
+
+    device_name = request.data.get('device_name', '')
+    manifest_version = request.data.get('manifest_version', 0)
+
+    device, created = DeviceSyncStatus.objects.update_or_create(
+        device_id=device_id,
+        defaults={
+            'device_name': device_name,
+            'last_synced_manifest_version': manifest_version,
+        }
+    )
+
+    return Response({
+        'status': 'ok',
+        'device_id': device.device_id,
+        'synced_version': device.last_synced_manifest_version,
+        'created': created,
+    })
+
