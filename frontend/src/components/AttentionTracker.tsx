@@ -74,7 +74,7 @@ const AttentionTracker: React.FC<AttentionTrackerProps> = ({ isActive, onDistrac
             onFocused();
           } else {
             const timeSinceLastSeen = Date.now() - lastSeenRef.current;
-            if (timeSinceLastSeen > 10000) {
+            if (timeSinceLastSeen > 3000) {
               onDistracted();
             }
           }

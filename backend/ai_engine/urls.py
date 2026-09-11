@@ -8,11 +8,13 @@ from .views import (
     QuizSubmitView,
     QuizAnalyzeView,
 )
+from .tts_views import TTSGenerateView
 
 urlpatterns = [
     path('summarize/', SummarizeVideoView.as_view(), name='ai-summarize'),
     path('chat/', ChatbotView.as_view(), name='ai-chat'),
     path('voice/', VoiceAssistantView.as_view(), name='ai-voice'),
+    path('tts/', TTSGenerateView.as_view(), name='ai-tts'),
     path('flashcards/', FlashcardGenerateView.as_view(), name='ai-flashcards'),
     path('quiz/', QuizGenerateView.as_view(), name='ai-quiz'),
     path('quiz/submit/', QuizSubmitView.as_view(), name='ai-quiz-submit'),

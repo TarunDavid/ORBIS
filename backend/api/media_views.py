@@ -26,7 +26,7 @@ def serve_media_with_range(request, path):
         last_byte = min(last_byte, statobj.st_size - 1)
         length = last_byte - first_byte + 1
 
-        def file_iterator(file_path, offset, length, chunk_size=8192):
+        def file_iterator(file_path, offset, length, chunk_size=262144):
             with open(file_path, 'rb') as f:
                 f.seek(offset)
                 remaining = length
@@ -42,7 +42,7 @@ def serve_media_with_range(request, path):
         response['Content-Range'] = f'bytes {first_byte}-{last_byte}/{statobj.st_size}'
         response['Accept-Ranges'] = 'bytes'
     else:
-        response = StreamingHttpResponse(FileWrapper(open(file_path, 'rb')), content_type=content_type)
+        response = StreamingHttpResponse(FileWrapper(open(file_path, 'rb'), 262144), content_type=content_type)
         response['Content-Length'] = str(statobj.st_size)
         response['Accept-Ranges'] = 'bytes'
 

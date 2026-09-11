@@ -1,11 +1,14 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
-import { ArrowLeft, Sparkles, MessageCircle, Mic, FileText, Book, PlayCircle, Layers, Brain, Eye, Presentation } from 'lucide-react';
+import { ArrowLeft, Sparkles, MessageCircle, Mic, FileText, Book, PlayCircle, Layers, Brain, Eye, Presentation, Shield, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import AIChatbot from '../components/AIChatbot';
 import AttentionTracker from '../components/AttentionTracker';
 import SyncManager from '../components/SyncManager';
+import ParentSessionLock from '../components/ParentSessionLock';
+import { useFocusAudioAlert } from '../hooks/useFocusAudioAlert';
+import { focusAlarm } from '../lib/focusAlarm';
 
 interface Resource {
   id: number;
@@ -32,7 +35,24 @@ const ChapterContent = () => {
   const [showChatbot, setShowChatbot] = useState(false);
   const [focusModeActive, setFocusModeActive] = useState(false);
   const [isDistracted, setIsDistracted] = useState(false);
+  const [showSessionLock, setShowSessionLock] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [viewingPdf, setViewingPdf] = useState<{ title: string; url: string } | null>(null);
   const mainVideoRef = useRef<HTMLVideoElement>(null);
+  const chapterContainerRef = useRef<HTMLDivElement>(null);
+
+  // Read current student for audio alert
+  let currentStudent: { id: number; name: string } | null = null;
+  try {
+    const raw = localStorage.getItem('currentStudent');
+    if (raw) currentStudent = JSON.parse(raw);
+  } catch {
+    // Corrupted localStorage — proceed without student info
+  }
+  const { playAlert, playFullscreenAlert, stopAudio } = useFocusAudioAlert(
+    currentStudent?.id ?? null,
+    currentStudent?.name ?? 'Student',
+  );
 
   const updateProgress = async (fields: { video_watched?: boolean, notes_viewed?: boolean, summary_generated?: boolean }) => {
     const studentStr = localStorage.getItem('currentStudent');
@@ -191,18 +211,25 @@ const ChapterContent = () => {
   const pptResource = chapter.resources.find(r => r.resource_type === 'ppt' || r.resource_type === 'presentation');
 
   return (
-    <div className="min-h-screen bg-canvas text-[#121316] font-jakarta pb-16">
+    <div ref={chapterContainerRef} className="min-h-screen w-full overflow-y-auto bg-canvas text-[#121316] font-jakarta pb-16">
       <div className="max-w-6xl mx-auto p-4 md:p-6 lg:p-8">
         
         {/* Top bar */}
         <div className="flex items-center justify-between mb-6">
-          <button 
-            onClick={() => navigate(-1)}
-            className="clay-btn bg-white text-[#121316] hover:bg-canvas px-4 py-2 text-sm flex items-center gap-2"
-          >
-            <ArrowLeft size={18} />
-            <span>Back to Chapters</span>
-          </button>
+          {!isLocked ? (
+            <button 
+              onClick={() => navigate(-1)}
+              className="clay-btn bg-white text-[#121316] hover:bg-canvas px-4 py-2 text-sm flex items-center gap-2"
+            >
+              <ArrowLeft size={18} />
+              <span>Back to Chapters</span>
+            </button>
+          ) : (
+            <div className="clay-chip bg-coral text-white px-4 py-2 text-sm flex items-center gap-2 font-bold shadow-sm">
+              <Shield size={16} />
+              <span>Session Locked</span>
+            </div>
+          )}
 
           <div className="flex items-center gap-2">
             <SyncManager compact />
@@ -240,9 +267,20 @@ const ChapterContent = () => {
                       if (mainVideoRef.current) {
                         mainVideoRef.current.pause();
                       }
+                      // Continuous alarm chime + continuous spoken reminder
+                      const name = currentStudent?.name || focusAlarm.getStudentName();
+                      focusAlarm.start(`Hey ${name}, please focus on your lesson!`, 440, 587);
                     }
                   }}
-                  onFocused={() => {}}
+                  onFocused={() => {
+                    // Refocused on camera: stop the continuous alarm immediately and resume video
+                    setIsDistracted(false);
+                    focusAlarm.stop();
+                    stopAudio();
+                    if (mainVideoRef.current && mainVideoRef.current.paused) {
+                      mainVideoRef.current.play().catch(() => {});
+                    }
+                  }}
                 />
               )}
 
@@ -256,8 +294,10 @@ const ChapterContent = () => {
                   <button 
                     onClick={() => {
                       setIsDistracted(false);
+                      focusAlarm.stop();
+                      stopAudio();
                       if (mainVideoRef.current) {
-                        mainVideoRef.current.play();
+                        mainVideoRef.current.play().catch(() => {});
                       }
                     }}
                     className="clay-btn bg-gold text-[#121316] px-6 py-3 font-grotesk font-bold text-sm tracking-wide"
@@ -273,6 +313,7 @@ const ChapterContent = () => {
                     ref={mainVideoRef}
                     src={getMediaUrl(videoResource.file_path)}
                     controls 
+                    preload="metadata"
                     className="w-full h-full object-contain"
                     onPlay={() => setIsDistracted(false)}
                   />
@@ -297,17 +338,56 @@ const ChapterContent = () => {
                     </p>
                   </div>
 
-                  <button
-                    onClick={() => setFocusModeActive(!focusModeActive)}
-                    className={`clay-btn px-4 py-2.5 flex items-center gap-2 text-sm font-grotesk transition-all ${
-                      focusModeActive 
-                        ? 'bg-cobalt text-white' 
-                        : 'bg-canvas text-[#121316] hover:bg-white'
-                    }`}
-                  >
-                    <Eye size={18} />
-                    <span>{focusModeActive ? 'Focus Mode ON' : 'Enable Focus Mode'}</span>
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => setFocusModeActive(!focusModeActive)}
+                      className={`clay-btn px-4 py-2.5 flex items-center gap-2 text-sm font-grotesk transition-all ${
+                        focusModeActive 
+                          ? 'bg-cobalt text-white' 
+                          : 'bg-canvas text-[#121316] hover:bg-white'
+                      }`}
+                    >
+                      <Eye size={18} />
+                      <span>{focusModeActive ? 'Focus Mode ON' : 'Enable Focus Mode'}</span>
+                    </button>
+
+                    {focusModeActive && !showSessionLock && (
+                      <button
+                        onClick={() => setShowSessionLock(true)}
+                        className="clay-btn px-4 py-2.5 flex items-center gap-2 text-sm font-grotesk bg-gold text-[#121316] hover:bg-gold-light transition-all"
+                      >
+                        <Shield size={18} />
+                        <span>Focus Session</span>
+                      </button>
+                    )}
+
+                    {/* Timer badge renders inline when session is locked */}
+                    {showSessionLock && (
+                      <ParentSessionLock
+                        containerRef={chapterContainerRef}
+                        studentName={currentStudent?.name}
+                        onLockStateChange={setIsLocked}
+                        onFullscreenExitAlert={playFullscreenAlert}
+                        onPauseVideo={() => {
+                          if (mainVideoRef.current) {
+                            mainVideoRef.current.pause();
+                          }
+                        }}
+                        onResumeVideo={() => {
+                          if (mainVideoRef.current) {
+                            mainVideoRef.current.play().catch(() => {});
+                          }
+                        }}
+                        onSessionEnd={() => {
+                          focusAlarm.stop();
+                          stopAudio();
+                          setShowSessionLock(false);
+                          setFocusModeActive(false);
+                          setIsLocked(false);
+                        }}
+                      />
+                    )}
+                  </div>
                 </div>
 
                 {/* Tactical Action Buttons Row */}
@@ -416,20 +496,18 @@ const ChapterContent = () => {
               
               <div className="space-y-3">
                 {notesResource ? (
-                  <a 
-                    href={getMediaUrl(notesResource.file_path)} 
-                    target="_blank" 
-                    rel="noreferrer" 
-                    className="clay-card-sm bg-canvas hover:bg-white p-4 flex items-center gap-4 transition-transform hover:-translate-y-0.5 group block"
+                  <button 
+                    onClick={() => setViewingPdf({ title: 'Chapter Notes', url: getMediaUrl(notesResource.file_path) })}
+                    className="clay-card-sm bg-canvas hover:bg-white p-4 flex items-center gap-4 transition-transform hover:-translate-y-0.5 group w-full text-left cursor-pointer"
                   >
                     <div className="clay-circle bg-cobalt text-white p-2.5 flex-shrink-0 group-hover:scale-105 transition-transform">
                       <FileText size={22} />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <h4 className="font-syne font-bold text-sm text-[#121316]">Chapter Notes</h4>
-                      <p className="font-grotesk text-xs text-stone-500 uppercase tracking-wider mt-0.5">PDF Document</p>
+                      <p className="font-grotesk text-xs text-stone-500 uppercase tracking-wider mt-0.5">In-App Reader • PDF</p>
                     </div>
-                  </a>
+                  </button>
                 ) : (
                   <div className="clay-card-sm bg-stone-100 p-4 flex items-center gap-3 opacity-60">
                     <FileText size={22} className="text-stone-400" />
@@ -461,20 +539,18 @@ const ChapterContent = () => {
                 )}
 
                 {textbookResource ? (
-                  <a 
-                    href={getMediaUrl(textbookResource.file_path)} 
-                    target="_blank" 
-                    rel="noreferrer" 
-                    className="clay-card-sm bg-canvas hover:bg-white p-4 flex items-center gap-4 transition-transform hover:-translate-y-0.5 group block"
+                  <button 
+                    onClick={() => setViewingPdf({ title: 'Textbook Excerpt', url: getMediaUrl(textbookResource.file_path) })}
+                    className="clay-card-sm bg-canvas hover:bg-white p-4 flex items-center gap-4 transition-transform hover:-translate-y-0.5 group w-full text-left cursor-pointer"
                   >
                     <div className="clay-circle bg-mint text-[#121316] p-2.5 flex-shrink-0 group-hover:scale-105 transition-transform">
                       <Book size={22} />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <h4 className="font-syne font-bold text-sm text-[#121316]">Textbook Excerpt</h4>
-                      <p className="font-grotesk text-xs text-stone-500 uppercase tracking-wider mt-0.5">PDF Document</p>
+                      <p className="font-grotesk text-xs text-stone-500 uppercase tracking-wider mt-0.5">In-App Reader • PDF</p>
                     </div>
-                  </a>
+                  </button>
                 ) : (
                   <div className="clay-card-sm bg-stone-100 p-4 flex items-center gap-3 opacity-60">
                     <Book size={22} className="text-stone-400" />
@@ -520,6 +596,60 @@ const ChapterContent = () => {
 
         </div>
       </div>
+
+      {/* In-App PDF Reader Modal — Keeps student in fullscreen without leaving the app */}
+      {viewingPdf && (
+        <div 
+          className="fixed inset-0 z-[9995] bg-[#121316]/85 backdrop-blur-md flex flex-col p-2 md:p-6 animate-fade-in"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="clay-card bg-white flex flex-col h-full max-w-5xl w-full mx-auto overflow-hidden shadow-2xl">
+            {/* Header bar */}
+            <div className="flex items-center justify-between p-4 border-b-2 border-stone-200 bg-canvas">
+              <div className="flex items-center gap-3">
+                <div className="clay-circle bg-cobalt text-white p-2">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h3 className="font-syne font-extrabold text-base text-[#121316]">{viewingPdf.title}</h3>
+                  <span className="clay-chip bg-mint text-[#121316] px-2 py-0.5 text-[9px] uppercase font-bold">
+                    OFFLINE DOCUMENT READER
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {!isLocked && (
+                  <a
+                    href={viewingPdf.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="clay-btn bg-white text-[#121316] text-xs px-3 py-1.5 font-grotesk font-bold hover:bg-stone-100"
+                  >
+                    Open in Tab
+                  </a>
+                )}
+                <button
+                  onClick={() => setViewingPdf(null)}
+                  className="clay-btn bg-coral text-white p-2 hover:scale-105 transition-transform"
+                  title="Close PDF"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Embedded PDF iframe */}
+            <div className="flex-1 w-full h-full bg-stone-100 relative">
+              <iframe
+                src={viewingPdf.url}
+                className="w-full h-full border-0"
+                title={viewingPdf.title}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
