@@ -84,7 +84,7 @@ class FocusAlarmManager {
         const startTime = ctx.currentTime + idx * 0.14;
         osc.frequency.setValueAtTime(freq, startTime);
         gain.gain.setValueAtTime(0.001, startTime);
-        gain.gain.linearRampToValueAtTime(0.24, startTime + 0.02);
+        gain.gain.linearRampToValueAtTime(0.85, startTime + 0.02); // Much louder peak gain
         gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.18);
         osc.connect(gain);
         gain.connect(ctx.destination);
@@ -130,8 +130,8 @@ class FocusAlarmManager {
       const utterance = new SpeechSynthesisUtterance(this.currentMessage);
       this.currentUtterance = utterance; // Retain reference to prevent V8 GC termination
 
-      utterance.rate = 1.0;
-      utterance.pitch = 1.05;
+      utterance.rate = 1.05; // slightly faster
+      utterance.pitch = 1.15; // slightly higher pitch for urgency
       utterance.volume = 1.0;
 
       const voice = this.getBestVoice();
