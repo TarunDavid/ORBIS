@@ -45,6 +45,7 @@ class ChapterResource(models.Model):
         ('video', 'Video (MP4)'),
         ('notes', 'Notes (PDF)'),
         ('textbook', 'Textbook Excerpt (PDF)'),
+        ('ppt', 'Presentation (PPT)'),
     ]
     chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='resources')
     resource_type = models.CharField(max_length=20, choices=RESOURCE_TYPES)

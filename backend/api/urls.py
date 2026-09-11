@@ -5,7 +5,7 @@ from .views import (
     ChatSessionViewSet, FlashcardSetViewSet,
     QuizAttemptViewSet, LearningProgressViewSet,
 )
-from .sync_views import export_sync, import_sync
+from .sync_views import export_sync, import_sync, scan_media
 
 router = DefaultRouter()
 router.register(r'students', StudentViewSet)
@@ -21,4 +21,5 @@ urlpatterns = [
     path('', include(router.urls)),
     path('sync/export/', export_sync, name='sync_export'),
     path('sync/import/', import_sync, name='sync_import'),
+    path('sync/scan-media/', scan_media, name='sync_scan_media'),
 ]

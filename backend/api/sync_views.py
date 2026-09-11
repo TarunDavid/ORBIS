@@ -116,3 +116,27 @@ def import_sync(request):
             os.remove(temp_upload_path)
         if os.path.exists(temp_extract_dir):
             shutil.rmtree(temp_extract_dir)
+
+
+@api_view(['GET', 'POST'])
+def scan_media(request):
+    """
+    Scans the local MEDIA_ROOT directory and automatically links all videos, notes, and PPTs.
+    """
+    from .media_scanner import scan_and_sync_media
+    try:
+        stats = scan_and_sync_media()
+        return Response({
+            "status": "Success",
+            "message": "Media folder scanned and connected successfully!",
+            "stats": stats,
+            "totals": {
+                "grades": Grade.objects.count(),
+                "subjects": Subject.objects.count(),
+                "chapters": Chapter.objects.count(),
+                "resources": ChapterResource.objects.count(),
+            }
+        })
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+

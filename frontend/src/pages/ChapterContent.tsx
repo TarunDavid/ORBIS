@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
-import { ArrowLeft, Sparkles, MessageCircle, Mic, FileText, Book, PlayCircle, Layers, Brain, Eye } from 'lucide-react';
+import { ArrowLeft, Sparkles, MessageCircle, Mic, FileText, Book, PlayCircle, Layers, Brain, Eye, Presentation } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import AIChatbot from '../components/AIChatbot';
 import AttentionTracker from '../components/AttentionTracker';
@@ -177,9 +177,17 @@ const ChapterContent = () => {
     </div>
   );
 
+  const getMediaUrl = (filePath?: string) => {
+    if (!filePath) return '';
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) return filePath;
+    const base = `http://${window.location.hostname || 'localhost'}:8000`;
+    return `${base}${filePath.startsWith('/') ? '' : '/'}${filePath}`;
+  };
+
   const videoResource = chapter.resources.find(r => r.resource_type === 'video');
   const notesResource = chapter.resources.find(r => r.resource_type === 'notes');
   const textbookResource = chapter.resources.find(r => r.resource_type === 'textbook');
+  const pptResource = chapter.resources.find(r => r.resource_type === 'ppt' || r.resource_type === 'presentation');
 
   return (
     <div className="min-h-screen bg-canvas text-[#121316] font-jakarta pb-16">
@@ -259,7 +267,7 @@ const ChapterContent = () => {
                 {videoResource ? (
                   <video 
                     ref={mainVideoRef}
-                    src={encodeURI(videoResource.file_path)}
+                    src={getMediaUrl(videoResource.file_path)}
                     controls 
                     className="w-full h-full object-contain"
                     onPlay={() => setIsDistracted(false)}
@@ -405,7 +413,7 @@ const ChapterContent = () => {
               <div className="space-y-3">
                 {notesResource ? (
                   <a 
-                    href={notesResource.file_path} 
+                    href={getMediaUrl(notesResource.file_path)} 
                     target="_blank" 
                     rel="noreferrer" 
                     className="clay-card-sm bg-canvas hover:bg-white p-4 flex items-center gap-4 transition-transform hover:-translate-y-0.5 group block"
@@ -425,9 +433,32 @@ const ChapterContent = () => {
                   </div>
                 )}
 
+                {pptResource ? (
+                  <a 
+                    href={getMediaUrl(pptResource.file_path)} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    download
+                    className="clay-card-sm bg-canvas hover:bg-white p-4 flex items-center gap-4 transition-transform hover:-translate-y-0.5 group block"
+                  >
+                    <div className="clay-circle bg-coral text-white p-2.5 flex-shrink-0 group-hover:scale-105 transition-transform">
+                      <Presentation size={22} />
+                    </div>
+                    <div>
+                      <h4 className="font-syne font-bold text-sm text-[#121316]">Presentation Slides</h4>
+                      <p className="font-grotesk text-xs text-stone-500 uppercase tracking-wider mt-0.5">PowerPoint / Slides</p>
+                    </div>
+                  </a>
+                ) : (
+                  <div className="clay-card-sm bg-stone-100 p-4 flex items-center gap-3 opacity-60">
+                    <Presentation size={22} className="text-stone-400" />
+                    <span className="font-grotesk text-xs uppercase tracking-wide text-stone-500 font-bold">No Slides Available</span>
+                  </div>
+                )}
+
                 {textbookResource ? (
                   <a 
-                    href={textbookResource.file_path} 
+                    href={getMediaUrl(textbookResource.file_path)} 
                     target="_blank" 
                     rel="noreferrer" 
                     className="clay-card-sm bg-canvas hover:bg-white p-4 flex items-center gap-4 transition-transform hover:-translate-y-0.5 group block"

@@ -21,13 +21,20 @@ class ChapterResourceSerializer(serializers.ModelSerializer):
 
 
 class ChapterSerializer(serializers.ModelSerializer):
-    resources = ChapterResourceSerializer(many=True, read_only=True)
+    resources = serializers.SerializerMethodField()
     subject_name = serializers.CharField(source='subject.display_name', read_only=True)
     subject_identifier = serializers.CharField(source='subject.identifier', read_only=True)
 
     class Meta:
         model = Chapter
         fields = ['id', 'identifier', 'title', 'order', 'resources', 'subject_name', 'subject_identifier']
+
+    def get_resources(self, obj):
+        resources = obj.resources.all()
+        if not resources.exists():
+            from .media_scanner import discover_chapter_resources
+            resources = discover_chapter_resources(obj)
+        return ChapterResourceSerializer(resources, many=True).data
 
 
 class SubjectSerializer(serializers.ModelSerializer):

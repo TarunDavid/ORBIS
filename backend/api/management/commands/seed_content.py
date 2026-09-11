@@ -117,10 +117,37 @@ SEED_DATA = {
 }
 
 
+from api.media_scanner import scan_and_sync_media
+from api.models import ChapterResource
+
+
 class Command(BaseCommand):
-    help = "Seed Grade, Subject, and Chapter data for development."
+    help = "Seed Grade, Subject, Chapter, and Resource data from media folder or fallback."
 
     def handle(self, *args, **options):
+        self.stdout.write(self.style.NOTICE("Scanning media folder for videos, notes, and PPTs..."))
+        stats = scan_and_sync_media(verbose=True)
+
+        total_grades = Grade.objects.count()
+        total_subjects = Subject.objects.count()
+        total_chapters = Chapter.objects.count()
+        total_resources = ChapterResource.objects.count()
+
+        if total_chapters > 0:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Successfully connected media folder!\n"
+                    f"  - Grades in DB: {total_grades}\n"
+                    f"  - Subjects in DB: {total_subjects}\n"
+                    f"  - Chapters in DB: {total_chapters}\n"
+                    f"  - Connected Media Resources: {total_resources} "
+                    f"({stats.get('resources_created', 0)} newly registered)"
+                )
+            )
+            return
+
+        # Fallback to static SEED_DATA if media folder was not present
+        self.stdout.write(self.style.WARNING("No media found on disk, falling back to static seeds..."))
         created_grades = 0
         created_subjects = 0
         created_chapters = 0
@@ -151,7 +178,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Seeded {created_grades} grades, {created_subjects} subjects, "
+                f"Seeded fallback {created_grades} grades, {created_subjects} subjects, "
                 f"{created_chapters} chapters."
             )
         )

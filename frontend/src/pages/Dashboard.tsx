@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { BookOpen, BookA, RefreshCw, AlertCircle, FlaskConical, Globe } from 'lucide-react';
+import { BookOpen, BookA, AlertCircle, FlaskConical, Globe } from 'lucide-react';
 
 interface Subject {
   id: number;
@@ -177,11 +177,6 @@ const Dashboard = () => {
   useEffect(() => {
     fetchSubjects();
   }, [studentGrade]);
-
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate('/');
-  };
 
   return (
     <div className="min-h-screen bg-canvas p-6 md:p-12 text-structural font-jakarta">

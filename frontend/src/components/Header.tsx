@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { User, ChevronRight, RefreshCw } from 'lucide-react';
+import { User, ChevronRight } from 'lucide-react';
 
 const AVATAR_COLORS = ['bg-cobalt', 'bg-gold', 'bg-mint', 'bg-coral', 'bg-lilac'];
 
