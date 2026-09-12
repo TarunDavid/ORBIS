@@ -52,7 +52,7 @@ SEED_DATA = {
             ],
         },
         "hindi": {
-            "display_name": "Hindi",
+            "display_name": "हिन्दी",
             "chapters": [
                 "Rah ka Saathi",
                 "Faslon ke Tyohaar",
@@ -62,7 +62,7 @@ SEED_DATA = {
             ],
         },
         "kannada": {
-            "display_name": "Kannada",
+            "display_name": "ಕನ್ನಡ",
             "chapters": [
                 "Namma Desha Namma Hemmae",
                 "Shaalegae Hogona Baanni",

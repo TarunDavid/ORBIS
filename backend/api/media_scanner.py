@@ -7,9 +7,9 @@ logger = logging.getLogger(__name__)
 
 # Subject mapping: folder name -> (identifier, display_name)
 SUBJECT_MAPPINGS = {
-    'kannada': ('kannada', 'Kannada'),
+    'kannada': ('kannada', 'ಕನ್ನಡ'),
     'english': ('english', 'English'),
-    'hindi': ('hindi', 'Hindi'),
+    'hindi': ('hindi', 'हिन्दी'),
     'maths': ('maths', 'Mathematics'),
     'mathematics': ('maths', 'Mathematics'),
     'math': ('maths', 'Mathematics'),
@@ -203,6 +203,12 @@ def scan_and_sync_media(media_root: str = None, verbose: bool = False) -> dict:
                         dup.flashcard_sets.all().update(chapter=chapter)
                         dup.delete()
 
+                    # Preserve native titles if they were already translated
+                    if subj_ident in ['hindi', 'kannada']:
+                        has_native = any('\u0c80' <= char <= '\u0cff' or '\u0900' <= char <= '\u097f' for char in chapter.title)
+                        if has_native:
+                            chapter_title = chapter.title
+                            
                     chapter.identifier = chapter_ident
                     chapter.title = chapter_title
                     chapter.order = order
