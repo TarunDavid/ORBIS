@@ -168,3 +168,23 @@ class TTSService:
         except Exception as e:
             print(f"Failed to run piper: {e}")
             return False
+
+
+class EmbeddingService:
+    """Singleton service for SentenceTransformer embeddings to avoid per-request model loading."""
+    _instance = None
+    _lock = threading.Lock()
+
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    from sentence_transformers import SentenceTransformer
+                    cls._instance = SentenceTransformer('all-MiniLM-L6-v2')
+        return cls._instance
+
+    @classmethod
+    def encode(cls, text):
+        embedder = cls.get_instance()
+        return embedder.encode(text)

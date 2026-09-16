@@ -176,13 +176,14 @@ def get_summarize_prompt(language: str, chapter_context: str) -> str:
     return SUMMARIZE_ENGLISH.format(chapter_context=chapter_context)
 
 GENERATE_FLASHCARDS = """Based on the chapter content below, generate {count} flashcards to help a student study.
-Each flashcard should have a front (question or term) and a back (answer or definition).
+Each flashcard should have a front (short question or term) and a back (concise answer or definition, max 1-2 sentences).
+Do NOT include extra explanations. Keep it extremely brief.
 
 CHAPTER CONTENT:
 {chapter_context}
 
 Respond ONLY with valid JSON in this exact format, no other text:
-{{"flashcards": [{{"front": "question or term", "back": "answer or definition"}}]}}"""
+{{"flashcards": [{{"front": "short question", "back": "short answer"}}]}}"""
 
 GENERATE_QUIZ = """Based on the chapter content below, generate {count} multiple-choice quiz questions to test a student's understanding.
 Each question should have exactly 4 options (A, B, C, D) with one correct answer.
@@ -199,8 +200,10 @@ Each question MUST also include a helpful 'hint' for the student.
 CRITICAL HINT RULES:
 1. The hint MUST NOT contain the correct answer's text, or a close paraphrase/synonym of it.
 2. The hint MUST NOT eliminate all incorrect options, leaving only one possible answer.
-3. The hint MUST point toward a concept, fact, or way of thinking about the question (e.g., "think about what happens to water when it gets very cold") rather than pointing at an option.
-4. The hint MUST be a single short sentence.
+3. The hint MUST point toward a specific concept or rule from the chapter content relevant to this question, rather than giving away the answer. Do NOT use generic or unrelated examples.
+4. The hint MUST be a single short sentence tailored specifically to the question.
+5. All questions must be distinct, diverse, and cover different concepts from the chapter.
+6. All 4 options (A, B, C, D) must be unique, plausible choices with only one correct answer.
 
 Each question should have exactly 4 options (A, B, C, D) with one correct answer.
 

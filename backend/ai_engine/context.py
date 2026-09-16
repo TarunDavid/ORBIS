@@ -187,18 +187,18 @@ def get_rag_context(chapter_id: int, query: str) -> str:
         return ""
     
     try:
-        from sentence_transformers import SentenceTransformer
+        from .services import EmbeddingService
         import struct
         import sqlean
         import sqlite_vec
         
-        # Load embedding model (should ideally be a singleton in production)
-        embedder = SentenceTransformer('all-MiniLM-L6-v2')
-        query_embedding = embedder.encode(query).tolist()
+        # Use singleton embedding model
+        query_embedding = EmbeddingService.encode(query).tolist()
         vector_bytes = struct.pack(f'{len(query_embedding)}f', *query_embedding)
         
-        # Open separate connection for sqlite-vec
-        db = sqlean.connect('db.sqlite3')
+        # Open connection for sqlite-vec using project db.sqlite3 path
+        db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'db.sqlite3')
+        db = sqlean.connect(db_path)
         db.enable_load_extension(True)
         sqlite_vec.load(db)
         
@@ -218,7 +218,8 @@ def get_rag_context(chapter_id: int, query: str) -> str:
         db.close()
         
         if not results:
-            return "No specific chapter materials found for this question."
+            # Fallback to full chapter context if no chunks matched
+            return get_chapter_context(chapter_id)
         
         context_parts = ["[Retrieved Chapter Material]:"]
         for idx, (text,) in enumerate(results):
