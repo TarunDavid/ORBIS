@@ -72,6 +72,7 @@ const ChapterContent = () => {
 
   useEffect(() => {
     const fetchChapter = async () => {
+      setSummary('');
       try {
         const res = await api.get(`chapters/${chapterId}/`);
         setChapter(res.data);

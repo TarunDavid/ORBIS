@@ -25,6 +25,7 @@ from .prompts import (
     UNIFIED_QUIZ_ANALYZE,
     get_system_tutor_prompt,
     get_voice_tutor_prompt,
+    get_summarize_prompt,
     build_chat_prompt,
     build_completion_prompt,
     build_messages,
@@ -33,48 +34,51 @@ from .prompts import (
 logger = logging.getLogger(__name__)
 
 
-def _safe_translate(text: str, lang_code: str, max_retries: int = 2) -> str:
-    """Translates text safely with non-blocking timeout and retry logic."""
-    import requests
+def _safe_translate(text: str, target: str, source: str = 'auto') -> str:
+    """Translates text safely with multiple fallbacks to bypass rate limits."""
     import time
-    from deep_translator import MyMemoryTranslator
+    from deep_translator import GoogleTranslator, MyMemoryTranslator
 
     clean = text.strip()
     if not clean:
         return ""
 
-    orig_get = requests.get
-    def timeout_get(*args, **kwargs):
-        if 'timeout' not in kwargs:
-            kwargs['timeout'] = 6
-        return orig_get(*args, **kwargs)
-    requests.get = timeout_get
+    if target == 'kn-IN': target = 'kn'
+    if target == 'hi-IN': target = 'hi'
 
-    for attempt in range(max_retries):
-        try:
-            t = MyMemoryTranslator(source='en-US', target=lang_code, email='educarnival.orbis@gmail.com')
-            res = t.translate(clean)
-            if res and res.strip():
-                return res.strip()
-        except Exception as e:
-            logger.warning(f"Translation attempt {attempt+1} failed for '{clean[:25]}': {e}")
-            time.sleep(0.3)
-    return ""
+    try:
+        res = GoogleTranslator(source=source, target=target).translate(clean)
+        if res and res.strip():
+            return res.strip()
+    except Exception as e:
+        logger.warning(f"GoogleTranslator failed for '{clean[:25]}': {e}")
+        time.sleep(0.2)
+
+    mm_source = 'en-US' if source == 'auto' else source
+    mm_target = target
+    if mm_target == 'kn': mm_target = 'kn-IN'
+    if mm_target == 'hi': mm_target = 'hi-IN'
+
+    try:
+        t = MyMemoryTranslator(source=mm_source, target=mm_target, email='educarnival.orbis@gmail.com')
+        res = t.translate(clean)
+        if res and res.strip():
+            return res.strip()
+    except Exception as e:
+        logger.warning(f"MyMemoryTranslator failed for '{clean[:25]}': {e}")
+
+    return clean
 
 
 def generate_educational_summary(chapter_id: int, force_refresh: bool = False) -> tuple[str, str]:
     """
-    Generates a structured, curriculum-grounded educational summary in the chapter's native language.
-    Avoids raw Whisper transcript errors, speech disfluencies, and garbled quotes.
-    Caches results to disk for fast, repeatable retrieval.
+    Generate an educational summary of the chapter.
+    Returns (summary_text, language).
     """
     import json
     import os
-    import re
-    import urllib.parse
     from django.conf import settings
     from api.models import Chapter
-    from deep_translator import MyMemoryTranslator
 
     # Check disk cache first unless forced
     cache_dir = os.path.join(settings.MEDIA_ROOT, 'ai_summaries')
@@ -93,67 +97,22 @@ def generate_educational_summary(chapter_id: int, force_refresh: bool = False) -
     ch = Chapter.objects.select_related('subject', 'subject__grade').get(id=chapter_id)
     lang_ident = (ch.subject.identifier or '').lower()
     disp_name = ch.subject.display_name or ''
-    grade_name = ch.subject.grade.identifier if ch.subject.grade else ''
 
     if 'kannada' in lang_ident or 'ಕನ್ನಡ' in disp_name:
         target_lang = 'kannada'
-        lang_code = 'kn-IN'
-        header_overview = '### 📖 ಪಾಠದ ಪರಿಚಯ'
-        header_concepts = '### 💡 ಪ್ರಮುಖ ಕಲಿಕಾಂಶಗಳು'
-        header_exam = '### 🎯 ಪರೀಕ್ಷೆಗೆ ನೆನಪಿಡಬೇಕಾದ ಮುಖ್ಯಾಂಶಗಳು'
     elif 'hindi' in lang_ident or 'हिन्दी' in disp_name or 'हिंदी' in disp_name:
         target_lang = 'hindi'
-        lang_code = 'hi-IN'
-        header_overview = '### 📖 पाठ का परिचय'
-        header_concepts = '### 💡 मुख्य अवधारणाएँ एवं सीख'
-        header_exam = '### 🎯 परीक्षा के लिए महत्वपूर्ण बातें'
     else:
         target_lang = 'english'
-        lang_code = None
-        header_overview = '### 📖 Chapter Overview'
-        header_concepts = '### 💡 Key Concepts & Learnings'
-        header_exam = '### 🎯 Key Exam Takeaways'
 
-    # Clean lecture title from video resource
-    video_res = ch.resources.filter(resource_type='video').first()
-    lecture_title = ''
-    if video_res:
-        raw_name = os.path.basename(urllib.parse.unquote(video_res.file_path))
-        raw_name = re.sub(r'\s*\(\d+p,.*?\)\.mp4$', '', raw_name)
-        lecture_title = raw_name.replace('.mp4', '').strip()
-
-    sys_prompt = """You are a senior school curriculum designer authoring a study guide for students.
-Based on the chapter title, subject, grade, and video lecture topic, write a high-quality, structured educational summary.
-Structure into exactly 3 sections:
-Overview:
-(2 clear sentences introducing the lesson topic, educational objectives, and why it is important)
-
-Key Concepts:
-- **Concept 1**: Detailed explanation of first concept.
-- **Concept 2**: Detailed explanation of second concept.
-- **Concept 3**: Detailed explanation of third concept.
-
-Exam Takeaways:
-- **Point 1**: Actionable point for revision and exam scoring.
-- **Point 2**: Actionable point for revision and exam scoring.
-
-STRICT RULES:
-- Do NOT quote speech-to-text glitches, transcripts, or conversational filler.
-- Do NOT use generic filler sentences.
-- Write coherent, factual educational explanations appropriate for the school syllabus."""
-
-    user_prompt = f"""Chapter Title: {ch.title}
-Subject: {disp_name} ({grade_name})
-Lecture Topic: {lecture_title}
-
-Write the educational study guide now:"""
+    chapter_context = get_chapter_context(int(chapter_id))
+    prompt = get_summarize_prompt('english', chapter_context)
 
     res = LLMService.chat(
         messages=[
-            {'role': 'system', 'content': sys_prompt},
-            {'role': 'user', 'content': user_prompt}
+            {'role': 'user', 'content': prompt}
         ],
-        max_tokens=600,
+        max_tokens=800,
         temperature=0.3,
         repeat_penalty=1.18,
     )
@@ -163,7 +122,20 @@ Write the educational study guide now:"""
         final_summary = raw_draft
     else:
         # Translate each section cleanly into target language
-        translator = MyMemoryTranslator(source='en-US', target=lang_code, email='educarnival.orbis@gmail.com')
+        from deep_translator import MyMemoryTranslator
+        import re
+
+        if target_lang == 'kannada':
+            lang_code = 'kn-IN'
+            header_overview = '### 📖 ಪಾಠದ ಪರಿಚಯ'
+            header_concepts = '### 💡 ಪ್ರಮುಖ ಕಲಿಕಾಂಶಗಳು'
+            header_exam = '### 🎯 ಪರೀಕ್ಷೆಗೆ ನೆನಪಿಡಬೇಕಾದ ಅಂಶಗಳು'
+        else:
+            lang_code = 'hi-IN'
+            header_overview = '### 📖 पाठ का परिचय'
+            header_concepts = '### 💡 मुख्य अवधारणाएँ एवं सीख'
+            header_exam = '### 🎯 परीक्षा के लिए महत्वपूर्ण बातें'
+
         lines = raw_draft.split('\n')
         out_lines = [header_overview]
         seen_headers = {header_overview}
@@ -280,17 +252,16 @@ class ChatbotView(APIView):
         
         if lang in ['kannada', 'hindi']:
             try:
-                from deep_translator import GoogleTranslator
                 target_code = 'kn' if lang == 'kannada' else 'hi'
                 
                 # Translate to English for the LLM
-                english_message = GoogleTranslator(source='auto', target='en').translate(message)
+                english_message = _safe_translate(message, target='en')
                 
                 # If they typed in English originally, we translate TO the target language 
                 # just to show it in the UI as 'translated_message'
                 has_latin = any('a' <= c.lower() <= 'z' for c in message)
                 if has_latin:
-                    translated_query = GoogleTranslator(source='auto', target=target_code).translate(message)
+                    translated_query = _safe_translate(message, target=target_code)
             except Exception as e:
                 logger.warning(f"Translation failed: {e}")
 
@@ -322,9 +293,8 @@ class ChatbotView(APIView):
             final_response = response_text
             if lang in ['kannada', 'hindi']:
                 try:
-                    from deep_translator import GoogleTranslator
                     target_code = 'kn' if lang == 'kannada' else 'hi'
-                    final_response = GoogleTranslator(source='en', target=target_code).translate(response_text)
+                    final_response = _safe_translate(response_text, target=target_code, source='en')
                 except Exception as e:
                     logger.warning(f"Response translation failed: {e}")
 
@@ -360,11 +330,9 @@ class ChatbotView(APIView):
             
             history = []
             if lang in ['kannada', 'hindi']:
-                from deep_translator import GoogleTranslator
-                translator = GoogleTranslator(source='auto', target='en')
                 for msg in messages:
                     try:
-                        en_content = translator.translate(msg.content)
+                        en_content = _safe_translate(msg.content, target='en')
                         history.append({'role': msg.role, 'content': en_content})
                     except:
                         pass
@@ -454,8 +422,7 @@ class VoiceAssistantView(APIView):
             english_text = user_text
             if lang in ['kannada', 'hindi']:
                 try:
-                    from deep_translator import GoogleTranslator
-                    english_text = GoogleTranslator(source='auto', target='en').translate(user_text)
+                    english_text = _safe_translate(user_text, target='en')
                 except Exception as e:
                     logger.warning(f"Voice translation failed: {e}")
 
@@ -481,9 +448,8 @@ class VoiceAssistantView(APIView):
             final_response = ai_text
             if lang in ['kannada', 'hindi']:
                 try:
-                    from deep_translator import GoogleTranslator
                     target_code = 'kn' if lang == 'kannada' else 'hi'
-                    final_response = GoogleTranslator(source='en', target=target_code).translate(ai_text)
+                    final_response = _safe_translate(ai_text, target=target_code, source='en')
                 except Exception as e:
                     logger.warning(f"Voice response translation failed: {e}")
 
@@ -523,7 +489,7 @@ class FlashcardGenerateView(APIView):
     def post(self, request, *args, **kwargs):
         chapter_id = request.data.get('chapter_id')
         student_id = request.data.get('student_id')
-        count = request.data.get('count', 5)
+        count = request.data.get('count', 3)
 
         if not chapter_id:
             return Response(
@@ -532,13 +498,16 @@ class FlashcardGenerateView(APIView):
             )
 
         context = get_chapter_context(int(chapter_id))
+        if len(context) > 4000:
+            context = context[:4000] + "\n\n[Content truncated for length]"
+            
         messages = build_messages(
             GENERATE_FLASHCARDS.format(chapter_context=context, count=count)
         )
 
         try:
             flashcard_data = LLMService.generate_json(
-                messages, max_tokens=1500, retries=1
+                messages, max_tokens=800, retries=1
             )
 
             if not flashcard_data or 'flashcards' not in flashcard_data:

@@ -59,6 +59,7 @@ RULES:
 - Answer in 1-3 sentences. Keep it concise since this will be read aloud.
 - Base your answer ONLY on the chapter content below.
 - Use simple, conversational language.
+- DO NOT use any markdown formatting, bullet points, asterisks, hashes, or math symbols. Output ONLY pure plain text that can be spoken naturally by a Text-to-Speech engine.
 - If the educational question is unclear, ask the student to repeat it.
 
 CHAPTER CONTENT:
@@ -70,6 +71,7 @@ SYSTEM_VOICE_TUTOR_KANNADA = """ನೀವು ORBIS AI ಶಿಕ್ಷಕರು, 
 - ಇದು ಧ್ವನಿಯಿಂದ ಲಿಪ್ಯಂತರಗೊಂಡಿರುವುದರಿಂದ ಹಿನ್ನೆಲೆ ಶಬ್ದ ಅಥವಾ ಇತರರ ಮಾತುಗಳು (interruptions) ಸೇರಿರಬಹುದು. ಅನಗತ್ಯ ಮಾತುಗಳನ್ನು ನಿರ್ಲಕ್ಷಿಸಿ, ಕೇವಲ ವಿದ್ಯಾರ್ಥಿಯ ಮುಖ್ಯ ಶೈಕ್ಷಣಿಕ ಪ್ರಶ್ನೆಗೆ ಮಾತ್ರ ಗಮನಹರಿಸಿ.
 - 1-2 ಸರಳ ವಾಕ್ಯಗಳಲ್ಲಿ ಕನ್ನಡ ಲಿಪಿಯಲ್ಲಿಯೇ ಸಂಕ್ಷಿಪ್ತವಾಗಿ ಉತ್ತರಿಸಿ.
 - ಕೆಳಗಿನ ಅಧ್ಯಾಯದ ವಿಷಯವನ್ನು ಆಧರಿಸಿ ಉತ್ತರಿಸಿ.
+- ಯಾವುದೇ ಮಾರ್ಕ್ಡೌನ್ (markdown), ಸ್ಟಾರ್ (*), ಹ್ಯಾಶ್ (#), ಅಥವಾ ಗಣಿತದ ಚಿಹ್ನೆಗಳನ್ನು ಬಳಸಬೇಡಿ. ಕೇವಲ ಓದಲು ಸುಲಭವಾದ ಸರಳ ಪಠ್ಯವನ್ನು ಮಾತ್ರ ಬಳಸಿ.
 
 ಅಧ್ಯಾಯದ ವಿಷಯ:
 {chapter_context}"""
@@ -80,6 +82,7 @@ SYSTEM_VOICE_TUTOR_HINDI = """आप ORBIS AI शिक्षक हैं, ज�
 - यह इनपुट आवाज़ से लिया गया है, इसलिए इसमें पृष्ठभूमि का शोर या दूसरों की बातचीत (interruptions) हो सकती है। कृपया अनावश्यक बातों को अनदेखा करें और केवल विद्यार्थी के मुख्य शैक्षणिक प्रश्न पर ध्यान दें।
 - 1-2 सरल वाक्यों में केवल हिन्दी (देवनागरी लिपि) में संक्षिप्त उत्तर दें।
 - नीचे दी गई अध्याय सामग्री पर आधारित उत्तर दें।
+- किसी भी प्रकार के मार्कडाउन (markdown), स्टार (*), हैश (#), या गणितीय प्रतीकों का उपयोग न करें। केवल शुद्ध पाठ (plain text) का उपयोग करें जिसे आवाज़ में आसानी से पढ़ा जा सके।
 
 अध्याय सामग्री:
 {chapter_context}"""
@@ -90,61 +93,73 @@ SYSTEM_VOICE_TUTOR = SYSTEM_VOICE_TUTOR_ENGLISH
 # Task-Specific Prompts (Multilingual Support)
 # ==============================================================================
 
-SUMMARIZE_ENGLISH = """Based on the chapter content below, write a clear, rich, and engaging summary that a student can quickly review.
-Do NOT write generic statements. Highlight the actual concepts, facts, and lessons explained in the content.
+SUMMARIZE_ENGLISH = """Based on the chapter content below, write a clear, rich, and engaging educational summary that directly teaches the material.
+CRITICAL RULES:
+1. Do NOT write generic meta-statements like "This video is about..." or "This chapter guide is designed for...".
+2. You MUST extract and directly teach the ACTUAL facts, rules, formulas, and concepts found in the content.
 
 Format beautifully with Markdown and emojis:
 ### 📖 Chapter Overview
-(2-3 clear sentences explaining the core topic)
+(2-3 clear sentences directly explaining the core topic taught)
 
 ### 💡 Key Concepts & Learnings
-- **Concept 1**: Detailed explanation
-- **Concept 2**: Detailed explanation
-- **Concept 3**: Detailed explanation
+- **[Specific Concept 1]**: Detailed explanation of the concept
+- **[Specific Concept 2]**: Detailed explanation of the concept
+- **[Specific Concept 3]**: Detailed explanation of the concept
 
 ### 🎯 Key Takeaways & Exam Points
-(Important points to remember for revision)
+(Important factual points to remember for revision)
 
 CHAPTER CONTENT:
 {chapter_context}
 
 SUMMARY:"""
 
-SUMMARIZE_KANNADA = """ನೀವು ಒಬ್ಬ ಶ್ರೇಷ್ಠ ಕನ್ನಡ ಭಾಷಾ ಶಿಕ್ಷಕರು. ಕೆಳಗಿನ ಅಧ್ಯಾಯದ ಮಾಹಿತಿಯನ್ನು ಸಂಪೂರ್ಣವಾಗಿ ಗ್ರಹಿಸಿ, ಶಾಲಾ ವಿದ್ಯಾರ್ಥಿಗಳಿಗೆ ಓದಲು ಅತ್ಯಂತ ಆಕರ್ಷಕ, ಸ್ಪಷ್ಟ ಮತ್ತು ಅರ್ಥಪೂರ್ಣವಾದ ಸಾರಾಂಶವನ್ನು ಕಡ್ಡಾಯವಾಗಿ ಕನ್ನಡ ಲಿಪಿಯಲ್ಲಿಯೇ ರಚಿಸಿ.
-ಪ್ರಮುಖ ನಿಯಮ: ಯಾವುದೇ ಆಂಗ್ಲ (English) ವಾಕ್ಯಗಳನ್ನು ಬಳಸಬೇಡಿ. ಸಂಪೂರ್ಣ ಸಾರಾಂಶವು ಕನ್ನಡದಲ್ಲೇ ಇರಬೇಕು. ಸಾಮಾನ್ಯವಾದ (generic) ಮಾತುಗಳನ್ನು ಬರೆಯಬೇಡಿ; ಪಾಠದಲ್ಲಿ ತಿಳಿಸಲಾದ ನೈಜ ವಿಷಯ ಮತ್ತು ನಿಯಮಗಳನ್ನು ವಿವರವಾಗಿ ತಿಳಿಸಿ.
+SUMMARIZE_KANNADA = """You are an expert Kannada language educational tutor. Based on the chapter content below, write a clear, rich, and engaging summary that directly teaches the material.
+CRITICAL RULES:
+1. You MUST write the ENTIRE summary in Kannada script (ಕನ್ನಡ). Do not use English words in the output.
+2. Do NOT write generic meta-statements like "This video is about..." or "This chapter is for students".
+3. You MUST extract and directly list the ACTUAL facts, grammatical rules, formulas, and concepts found in the content.
 
-Markdown ಶೈಲಿ:
+Format beautifully with Markdown and emojis (in Kannada):
 ### 📖 ಪಾಠದ ಪರಿಚಯ
-(ಪಾಠದ ಮುಖ್ಯ ಉದ್ದೇಶದ 2-3 ವಾಕ್ಯಗಳ ಪರಿಚಯ)
+(2-3 clear sentences in Kannada directly explaining the core topic)
 
 ### 💡 ಪ್ರಮುಖ ಕಲಿಕಾಂಶಗಳು
-- **ಪ್ರಮುಖ ಅಂಶ ೧**: ವಿವರಣೆ
-- **ಪ್ರಮುಖ ಅಂಶ ೨**: ವಿವರಣೆ
-- **ಪ್ರಮುಖ ಅಂಶ ೩**: ವಿವರಣೆ
+- **[Specific Concept 1 in Kannada]**: Detailed explanation in Kannada
+- **[Specific Concept 2 in Kannada]**: Detailed explanation in Kannada
+- **[Specific Concept 3 in Kannada]**: Detailed explanation in Kannada
 
 ### 🎯 ಪರೀಕ್ಷೆಗೆ ನೆನಪಿಡಬೇಕಾದ ಅಂಶಗಳು
-(ಪುನರಾವರ್ತನೆಗೆ ಸೂಕ್ತವಾದ ಮುಖ್ಯಾಂಶಗಳು)
+(Important factual points to remember for revision, in Kannada)
 
-ಅಧ್ಯಾಯದ ಮಾಹಿತಿ (CONTENT):
-{chapter_context}"""
+CHAPTER CONTENT:
+{chapter_context}
 
-SUMMARIZE_HINDI = """आप एक श्रेष्ठ हिन्दी शिक्षक हैं। नीचे दी गई अध्याय सामग्री का अध्ययन करके विद्यार्थियों के लिए एक सुंदर, समृद्ध, ज्ञानवर्धक और परीक्षा-उपयोगी सारांश तैयार कीजिए।
-प्रमुख नियम: कोई भी अंग्रेज़ी वाक्य न लिखें, पूरा सारांश अनिवार्य रूप से केवल शुद्ध हिन्दी (देवनागरी लिपि) में ही होना चाहिए। सामान्य (generic) बातें न लिखें; अध्याय में सिखाए गए वास्तविक नियमों, तथ्यों और अवधारणाओं को शामिल करें।
+SUMMARY (IN KANNADA):"""
 
-Markdown शैली:
+SUMMARIZE_HINDI = """You are an expert Hindi language educational tutor. Based on the chapter content below, write a clear, rich, and engaging summary that directly teaches the material.
+CRITICAL RULES:
+1. You MUST write the ENTIRE summary in Hindi script (देवनागरी). Do not use English words in the output.
+2. Do NOT write generic meta-statements like "This video is about..." or "This chapter is for students".
+3. You MUST extract and directly list the ACTUAL facts, grammatical rules, formulas, and concepts found in the content.
+
+Format beautifully with Markdown and emojis (in Hindi):
 ### 📖 पाठ का परिचय
-(पाठ के मुख्य विषय और उद्देश्य पर 2-3 स्पष्ट वाक्य)
+(2-3 clear sentences in Hindi directly explaining the core topic)
 
 ### 💡 मुख्य अवधारणाएँ एवं सीख
-- **मुख्य बिंदु १**: स्पष्ट व्याख्या
-- **मुख्य बिंदु २**: स्पष्ट व्याख्या
-- **मुख्य बिंदु ३**: स्पष्ट व्याख्या
+- **[Specific Concept 1 in Hindi]**: Detailed explanation in Hindi
+- **[Specific Concept 2 in Hindi]**: Detailed explanation in Hindi
+- **[Specific Concept 3 in Hindi]**: Detailed explanation in Hindi
 
 ### 🎯 परीक्षा के लिए महत्वपूर्ण बातें
-(विद्यार्थियों के याद रखने योग्य बिंदु)
+(Important factual points to remember for revision, in Hindi)
 
-अध्याय सामग्री (CONTENT):
-{chapter_context}"""
+CHAPTER CONTENT:
+{chapter_context}
+
+SUMMARY (IN HINDI):"""
 
 SUMMARIZE_VIDEO = SUMMARIZE_ENGLISH
 

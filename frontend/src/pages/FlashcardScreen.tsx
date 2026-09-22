@@ -50,7 +50,7 @@ const FlashcardScreen = () => {
       const res = await api.post('ai/flashcards/', {
         chapter_id: chapterId,
         student_id: studentId,
-        count: 6,
+        count: 3,
       });
       setFlashcards(res.data.flashcards);
       setCurrentIndex(0);
